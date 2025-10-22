@@ -1,0 +1,11 @@
+{
+  "projects": {
+    "default": "tcs-controls",
+    "staging": "tcs-controls-sbn-bhd",
+    "firebase init": "tcsdatabank",
+    "y": "tcs-controls",
+    "firebase use project-alias": "tcsdatabank"
+  },
+  "targets": {},
+  "etags": {}
+}

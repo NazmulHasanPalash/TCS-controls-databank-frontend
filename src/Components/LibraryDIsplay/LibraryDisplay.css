@@ -1,0 +1,423 @@
+/* ===============================
+   Root
+   =============================== */
+.libd-root {
+  padding: 16px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  color: #0f172a;
+}
+
+/* Ensure breadcrumb shows full segment names (no ellipsis) */
+.libd-breadcrumb {
+  white-space: nowrap;
+  overflow: visible;
+}
+.libd-breadcrumb * {
+  max-width: none !important;
+  text-overflow: clip !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+}
+
+/* ===============================
+   Toolbar
+   =============================== */
+.libd-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap; /* responsive */
+}
+.libd-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap; /* responsive */
+}
+.libd-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    transform 0.02s ease;
+  font-size: 14px;
+  line-height: 1.1;
+}
+.libd-pill:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+.libd-pill:active {
+  transform: translateY(1px);
+}
+.libd-pill:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, 0.35);
+  outline-offset: 2px;
+}
+.libd-pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.libd-danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+/* Make buttons/text shrink slightly on smaller screens */
+@media (max-width: 640px) {
+  .libd-pill {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+}
+@media (max-width: 480px) {
+  .libd-pill {
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+}
+@media (max-width: 380px) {
+  .libd-pill {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+  .libd-actions {
+    gap: 6px;
+  }
+}
+
+/* ===============================
+   Alerts
+   =============================== */
+.libd-alert {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.libd-alert-error {
+  border: 1px solid #f5c2c7;
+  background: #f8d7da;
+  color: #842029;
+}
+.libd-alert-info {
+  border: 1px solid #b6d4fe;
+  background: #cfe2ff;
+  color: #084298;
+}
+
+/* ===============================
+   Table
+   =============================== */
+.libd-table {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.libd-thead {
+  display: grid;
+  grid-template-columns: 36px 1fr 120px 220px; /* checkbox | name | size | modified */
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  color: #334155;
+  align-items: center;
+}
+.libd-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 120px 220px;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid #f1f5f9;
+  align-items: center;
+  background: transparent;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+.libd-row:hover {
+  background: #f8fafc;
+}
+.libd-row.is-selected {
+  background: #eff6ff;
+}
+
+.libd-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.libd-right {
+  text-align: right;
+}
+.libd-muted {
+  color: #475569;
+}
+
+/* Empty state centered */
+.libd-empty {
+  display: grid;
+  place-items: center;
+  min-height: 40vh;
+  padding: 16px;
+  color: #64748b;
+  font-style: italic;
+  text-align: center;
+  font-size: 15px;
+}
+
+/* ===============================
+   Font Awesome icon colors — forced
+   =============================== */
+.libd-fa {
+  vertical-align: -2px;
+  flex: 0 0 auto;
+}
+.libd-folder {
+  color: #facc15 !important;
+}
+.libd-file {
+  color: #0d6efd !important;
+}
+
+/* ===============================
+   Context Menu
+   =============================== */
+.libd-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+}
+.libd-menu-title {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  color: #334155;
+}
+.libd-menu-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.12s ease;
+}
+.libd-menu-btn:hover,
+.libd-menu-btn:focus-visible {
+  background: #f8fafc;
+}
+.libd-menu-danger {
+  color: #b91c1c;
+}
+
+/* ===============================
+   Modal
+   =============================== */
+.libd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.4);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  backdrop-filter: saturate(1.1) blur(2px);
+}
+.libd-modal {
+  width: min(900px, 92vw);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+.libd-modal-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.libd-modal-title {
+  font-weight: 700;
+  color: #111827;
+  flex: 1;
+}
+.libd-icon-btn {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+.libd-icon-btn:hover {
+  background: #f8fafc;
+  border-color: #e5e7eb;
+}
+.libd-icon-btn:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, 0.35);
+  outline-offset: 2px;
+}
+.libd-modal-body {
+  padding: 14px;
+}
+
+/* ===============================
+   Preview
+   =============================== */
+.libd-preview-media {
+  max-width: 100%;
+  max-height: 70vh;
+  display: block;
+  margin: 0 auto;
+  border-radius: 8px;
+  background: transparent; /* was white */
+}
+
+.libd-preview-pdf {
+  width: 100%;
+  height: 70vh;
+  border: none;
+  border-radius: 8px;
+  background: transparent; /* was #0b1020 */
+}
+
+.libd-preview-audio {
+  width: 100%;
+  background: transparent;
+}
+
+.libd-preview-text {
+  background: transparent; /* was white */
+  color: inherit; /* was black */
+  padding: 16px;
+  border-radius: 8px;
+  max-height: 70vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* ===============================
+   Buttons
+   =============================== */
+.libd-btn-primary {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #0d6efd;
+  background: #0d6efd;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.libd-btn-primary:hover {
+  background: #0b5ed7;
+  border-color: #0a58ca;
+}
+.libd-btn-secondary {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.libd-btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+.libd-btn-primary:disabled,
+.libd-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===============================
+   Forms
+   =============================== */
+.libd-field {
+  margin-bottom: 8px;
+}
+.libd-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.libd-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.libd-input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.35);
+}
+
+.libd-modal-actions {
+  margin-top: 12px;
+  text-align: right;
+}
+.libd-gap {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ===============================
+   Responsive table tweaks
+   =============================== */
+@media (max-width: 900px) {
+  .libd-thead,
+  .libd-row {
+    grid-template-columns: 32px 1fr 100px 180px;
+  }
+}
+@media (max-width: 760px) {
+  .libd-thead,
+  .libd-row {
+    grid-template-columns: 32px 1fr 90px 160px;
+  }
+}
+@media (max-width: 620px) {
+  /* Hide "Last modified" on very small screens */
+  .libd-col-mod {
+    display: none !important;
+  }
+  .libd-thead,
+  .libd-row {
+    grid-template-columns: 32px 1fr 100px;
+  }
+}
+
+/* ===============================
+   Reduced motion
+   =============================== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

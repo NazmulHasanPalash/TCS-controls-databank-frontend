@@ -1,0 +1,76 @@
+.link-style {
+  color: black !important;
+}
+
+.photo-style img {
+  width: 20%;
+  border-radius: 30px;
+}
+
+.text-color {
+  background-color: white !important;
+  color: gray;
+}
+
+.dropdown-text-style {
+  color: gray !important;
+  font-size: 13px;
+}
+.dropdown-text-style:hover {
+  color: blue !important;
+  font-size: 13px;
+}
+
+.dropdown-image {
+  margin-left: auto;
+  width: 35%;
+}
+
+.header-text-style {
+  color: white !important;
+  font-weight: bold;
+}
+
+.header-text-style:hover {
+  color: white !important;
+  font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+}
+
+.home-icon {
+  color: blue;
+}
+
+.icon-style {
+  width: 3%;
+}
+
+.second-icon {
+  width: 50%;
+  margin-left: 50px;
+}
+
+.margin-header {
+  margin-bottom: 60px;
+}
+
+.header-style {
+  position: fixed !important;
+
+  margin-bottom: 100px;
+  top: 0;
+  right: 0;
+  left: 0;
+
+  z-index: 1030;
+  color: white !important;
+  border: 1px solid white !important;
+  border-radius: 5px;
+  font-family: 'Ubuntu', 'sans-serif';
+  font-weight: 1000;
+  background-color: blue !important;
+
+  text-align: center;
+}
+.icon-style img {
+  width: 100%;
+}

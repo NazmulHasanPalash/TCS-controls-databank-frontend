@@ -1,0 +1,90 @@
+/* Root container */
+.bc-root {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+/* Optional label (e.g., "Path:") */
+.bc-label {
+  margin-right: 4px;
+  font-weight: 600;
+  color: #0f172a; /* slate-900 */
+}
+
+/* Each crumb wrapper */
+.bc-item {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px; /* prevent layout blowouts */
+}
+
+/* Separator “/” */
+.bc-sep {
+  margin: 0 6px;
+  opacity: 0.6;
+  user-select: none;
+}
+
+/* Clickable crumb button */
+.bc-link {
+  background: none;
+  border: none;
+  padding: 4px 6px; /* easier to hit with mouse */
+  margin: -4px -2px; /* keeps visual spacing tight */
+  border-radius: 6px;
+  font: inherit;
+  color: #2563eb; /* blue-600 */
+  cursor: pointer;
+  text-decoration: none; /* we'll add underline on hover/focus */
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* truncate long folder names */
+}
+
+/* Hover/active feedback */
+.bc-link:hover {
+  color: #1d4ed8; /* blue-700 */
+  background: #eff6ff; /* blue-50 */
+  text-decoration: underline;
+}
+
+/* Keyboard focus visibility */
+.bc-link:focus-visible {
+  outline: 2px solid #93c5fd; /* blue-300 */
+  outline-offset: 2px;
+}
+
+/* Current (non-clickable) crumb */
+.bc-link.is-current {
+  color: #111827; /* gray-900 */
+  background: transparent;
+  cursor: default;
+  text-decoration: none;
+  pointer-events: none;
+  font-weight: 600;
+}
+
+/* Dark mode (optional) */
+@media (prefers-color-scheme: dark) {
+  .bc-label {
+    color: #e5e7eb; /* gray-200 */
+  }
+  .bc-link {
+    color: #93c5fd; /* blue-300 */
+  }
+  .bc-link:hover {
+    color: #bfdbfe; /* blue-200 */
+    background: rgba(147, 197, 253, 0.12);
+  }
+  .bc-link.is-current {
+    color: #f8fafc; /* gray-50 */
+  }
+  .bc-sep {
+    opacity: 0.7;
+  }
+}
