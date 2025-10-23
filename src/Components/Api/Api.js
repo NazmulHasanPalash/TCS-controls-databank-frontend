@@ -15,8 +15,8 @@ const API_BASE =
 // Create a preconfigured Axios instance
 const axiosClient = axios.create({
   baseURL: API_BASE,
-  withCredentials: true, // ok even if unused; server allows credentials
-  timeout: 60000, // 60s safety timeout
+  withCredentials: true, // server allows credentials
+  timeout: 60000, // 60s timeout
 });
 
 // Attach Firebase ID token to every request when available
@@ -24,13 +24,13 @@ axiosClient.interceptors.request.use(
   async (config) => {
     try {
       config.headers = config.headers || {};
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       if (user && typeof user.getIdToken === 'function') {
         const token = await user.getIdToken();
         if (token) config.headers.Authorization = `Bearer ${token}`;
       }
     } catch {
-      // ignore token fetch errors; request proceeds unauthenticated
+      // ignore token fetch errors; proceed unauthenticated
     }
     return config;
   },
@@ -39,19 +39,31 @@ axiosClient.interceptors.request.use(
 
 // Normalize backend / HTTP errors so the UI gets clean messages
 function toErrorMessage(err) {
-  // Prefer server-provided error message
   if (err?.response?.data?.error) return String(err.response.data.error);
-  // Fallback to HTTP status
   if (typeof err?.response?.status === 'number')
     return `HTTP ${err.response.status}`;
-  // Axios/network/message fallback
   return err?.message || 'Request failed';
 }
 
+// Allow get(url, {params,...}) OR get(url, paramsObject)
+function normalizeGetConfig(arg) {
+  if (
+    arg &&
+    typeof arg === 'object' &&
+    (Object.prototype.hasOwnProperty.call(arg, 'params') ||
+      Object.prototype.hasOwnProperty.call(arg, 'headers') ||
+      Object.prototype.hasOwnProperty.call(arg, 'responseType') ||
+      Object.prototype.hasOwnProperty.call(arg, 'timeout'))
+  ) {
+    return arg; // already an axios config
+  }
+  return { params: arg }; // treat as params object
+}
+
 export const api = {
-  get: (url, params) =>
+  get: (url, configOrParams) =>
     axiosClient
-      .get(url, { params })
+      .get(url, normalizeGetConfig(configOrParams))
       .then((r) => r.data)
       .catch((e) => {
         throw new Error(toErrorMessage(e));
@@ -60,6 +72,15 @@ export const api = {
   post: (url, body) =>
     axiosClient
       .post(url, body)
+      .then((r) => r.data)
+      .catch((e) => {
+        throw new Error(toErrorMessage(e));
+      }),
+
+  // Provide both `delete` (axios-style) and `del` aliases
+  delete: (url, body) =>
+    axiosClient
+      .delete(url, body ? { data: body } : undefined)
       .then((r) => r.data)
       .catch((e) => {
         throw new Error(toErrorMessage(e));

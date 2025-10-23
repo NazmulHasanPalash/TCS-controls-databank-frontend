@@ -4,8 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-// ⬇️ Adjust this import to your project structure if needed
-import { auth, db } from '../../firebase.init';
+import { auth, db } from '../Firebase/firebase.init';
 
 const ROLE_ORDER = ['operator', 'moderator', 'admin'];
 
@@ -34,6 +33,10 @@ export function useAuthRole() {
   const isModerator = useMemo(() => role === 'moderator', [role]);
   const isOperator = useMemo(() => role === 'operator', [role]);
 
+  // “At least” helpers (admin counts as moderator, etc.)
+  const isModeratorPlus = useMemo(() => gte(role, 'moderator'), [gte, role]);
+  const isOperatorPlus = useMemo(() => gte(role, 'operator'), [gte, role]); // always true for known roles
+
   // Read role from Firestore: users/{uid}.role
   const fetchRoleForUid = useCallback(async (uid) => {
     try {
@@ -44,11 +47,11 @@ export function useAuthRole() {
       }
       const ref = doc(db, 'users', uid);
       const snap = await getDoc(ref);
-      const r = snap.exists() ? normalizeRole(snap.data().role) : 'operator';
+      const r = snap.exists() ? normalizeRole(snap.data().role) : 'user';
       setRole(r);
     } catch (e) {
-      setRole('operator'); // safe fallback; server still enforces RBAC
-      setError(e && e.message ? e.message : 'Failed to read user role');
+      setRole('operator'); // safe fallback; server should still enforce RBAC
+      setError(e?.message || 'Failed to read user role');
     }
   }, []);
 
@@ -86,13 +89,23 @@ export function useAuthRole() {
   }, [fetchRoleForUid, user]);
 
   return {
-    loading,
-    error,
+    // state
     user, // Firebase Auth user or null
     role, // 'operator' | 'moderator' | 'admin'
+    loading, // original flag
+    isLoading: loading, // ✅ alias for router code that expects isLoading
+    error,
+
+    // exact-role flags
     isAdmin,
     isModerator,
     isOperator,
+
+    // inclusive helpers
+    isModeratorPlus, // moderator or admin
+    isOperatorPlus, // operator or above (i.e., any valid role)
+
+    // utils
     gte, // (aRole, bRole) => boolean
     refreshRole, // re-read role from Firestore
   };

@@ -64,10 +64,11 @@ const fmtDate = (d) => {
 };
 
 const isImg = (n) => /\.(png|jpe?g|gif|webp|svg)$/i.test(n);
-const isTxt = (n) => /\.(txt|json|xml|csv|md|html|css|js)$/i.test(n);
+const isTxt = (n) =>
+  /\.(txt|json|xml|csv|md|html?|css|js|ts|tsx|jsx|yml|yaml|log)$/i.test(n);
 const isPdf = (n) => /\.pdf$/i.test(n);
-const isAud = (n) => /\.(mp3|wav|ogg)$/i.test(n);
-const isVid = (n) => /\.(mp4|webm|ogv)$/i.test(n);
+const isAud = (n) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(n);
+const isVid = (n) => /\.(mp4|webm|ogv|mov|mkv)$/i.test(n);
 
 const sortItems = (items) =>
   [...items].sort((a, b) => {
@@ -624,7 +625,7 @@ function OperatorDisplay() {
     }
   };
 
-  /* ===== Folder upload success hook (needed by <OperatorUploadFolder/>) ===== */
+  /* ===== Folder upload success hook ===== */
   const handleFolderUploaded = useCallback(() => {
     setSuccessMsg('The folder uploaded successfully');
     fetchList();
@@ -765,6 +766,7 @@ function OperatorDisplay() {
 
       {/* Table */}
       <div className="libd-table">
+        {/* Sticky header */}
         <div className="libd-thead">
           <input
             type="checkbox"
@@ -784,58 +786,65 @@ function OperatorDisplay() {
           <div className="libd-right libd-col-mod">Last modified</div>
         </div>
 
-        {visibleItems.length === 0 && !loading ? (
-          <div className="libd-empty" role="status">
-            {normalizedQuery
-              ? 'No matching files or folders.'
-              : 'No files or folders'}
-          </div>
-        ) : (
-          visibleItems.map((item) => {
-            const k = keyOf(item);
-            const full = joinPosix(path, item.name);
-            const sizeToShow = item.isDirectory
-              ? typeof item.size === 'number'
-                ? item.size
-                : folderSizes[full]
-              : item.size;
-            return (
-              <div
-                key={k}
-                onDoubleClick={() => onRowDoubleClick(item)}
-                onContextMenu={(e) => onRowContextMenu(e, item)}
-                className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${item.name}`}
-                  checked={isSelected(k)}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    toggleOne(k);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <div className="libd-name" title={item.name}>
-                  <FontAwesomeIcon
-                    icon={item.isDirectory ? faFolder : faFile}
-                    className={`libd-fa ${
-                      item.isDirectory ? 'libd-folder' : 'libd-file'
-                    }`}
-                    style={item.isDirectory ? { color: '#f4c20d' } : undefined}
+        {/* Vertically scrollable body */}
+        <div className="libd-tbody-scroll">
+          {visibleItems.length === 0 && !loading ? (
+            <div className="libd-empty" role="status">
+              {normalizedQuery
+                ? 'No matching files or folders.'
+                : 'No files or folders'}
+            </div>
+          ) : (
+            visibleItems.map((item) => {
+              const k = keyOf(item);
+              const full = joinPosix(path, item.name);
+              const sizeToShow = item.isDirectory
+                ? typeof item.size === 'number'
+                  ? item.size
+                  : folderSizes[full]
+                : item.size;
+              return (
+                <div
+                  key={k}
+                  onDoubleClick={() => onRowDoubleClick(item)}
+                  onContextMenu={(e) => onRowContextMenu(e, item)}
+                  className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${item.name}`}
+                    checked={isSelected(k)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      toggleOne(k);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  {renderHighlightedName(item.name)}
+                  <div className="libd-name" title={item.name}>
+                    <FontAwesomeIcon
+                      icon={item.isDirectory ? faFolder : faFile}
+                      className={`libd-fa ${
+                        item.isDirectory ? 'libd-folder' : 'libd-file'
+                      }`}
+                      style={
+                        item.isDirectory ? { color: '#f4c20d' } : undefined
+                      }
+                    />
+                    {renderHighlightedName(item.name)}
+                  </div>
+                  <div className="libd-right libd-muted">
+                    {typeof sizeToShow === 'number'
+                      ? fmtBytes(sizeToShow)
+                      : '—'}
+                  </div>
+                  <div className="libd-right libd-muted libd-col-mod">
+                    {fmtDate(item.modifiedAt)}
+                  </div>
                 </div>
-                <div className="libd-right libd-muted">
-                  {typeof sizeToShow === 'number' ? fmtBytes(sizeToShow) : '—'}
-                </div>
-                <div className="libd-right libd-muted libd-col-mod">
-                  {fmtDate(item.modifiedAt)}
-                </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Context Menu */}

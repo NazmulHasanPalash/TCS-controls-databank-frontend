@@ -74,7 +74,7 @@ const isImg = (n) => /\.(png|jpe?g|gif|webp|svg)$/i.test(n);
 const isTxt = (n) => /\.(txt|json|xml|csv|md|html|css|js)$/i.test(n);
 const isPdf = (n) => /\.pdf$/i.test(n);
 const isAud = (n) => /\.(mp3|wav|ogg)$/i.test(n);
-const isVid = (n) => /\.(mp4|webm|ogv|ogg)$/i.test(n); // allow ogv/ogg containers
+const isVid = (n) => /\.(mp4|webm|ogv|ogg)$/i.test(n);
 
 const sortItems = (items) =>
   [...items].sort((a, b) => {
@@ -208,7 +208,7 @@ function ConfirmDeleteModal({ open, items, submitting, onCancel, onConfirm }) {
 
 ConfirmDeleteModal.propTypes = {
   open: PropTypes.bool.isRequired,
-  items: PropTypes.array.isRequired, // [{name, fullPath, isDirectory}]
+  items: PropTypes.array.isRequired,
   submitting: PropTypes.bool.isRequired,
   onCancel: PropTypes.func.isRequired,
   onConfirm: PropTypes.func.isRequired,
@@ -459,7 +459,6 @@ function SourcingAndPricingDisplay({ defaultView }) {
 
   const openConfirmDeleteBulk = () => {
     if (selected.size === 0) return;
-    // collapse to avoid deleting both a folder and its children
     const minimal = collapseSelection(Array.from(selected));
     const list = minimal.map((p) => {
       const it = itemByKey.get(p);
@@ -492,7 +491,6 @@ function SourcingAndPricingDisplay({ defaultView }) {
           return next;
         });
       } else {
-        // best-effort delete many; continue on errors
         for (const it of confirmItems) {
           const res = it.isDirectory
             ? await api.delete(`/api/folder`, { data: { path: it.fullPath } })
@@ -531,7 +529,6 @@ function SourcingAndPricingDisplay({ defaultView }) {
     setCtxOpen(false);
   };
 
-  // Server: POST /api/zip { path } -> { ok, downloadId, filename }
   const zipAndDownloadFolder = async (folderName) => {
     const fullPath = joinPosix(path, folderName);
     const res = await api.post(`/api/zip`, { path: fullPath });
@@ -785,8 +782,9 @@ function SourcingAndPricingDisplay({ defaultView }) {
       )}
       {loading && <div className="libd-alert libd-alert-info">Loading…</div>}
 
-      {/* Table */}
+      {/* Table with sticky header + vertically scrollable body */}
       <div className="libd-table">
+        {/* Header row */}
         <div className="libd-thead">
           <input
             type="checkbox"
@@ -806,58 +804,65 @@ function SourcingAndPricingDisplay({ defaultView }) {
           <div className="libd-right libd-col-mod">Last modified</div>
         </div>
 
-        {visibleItems.length === 0 && !loading ? (
-          <div className="libd-empty" role="status">
-            {normalizedQuery
-              ? 'No matching files or folders.'
-              : 'There is no file and folder'}
-          </div>
-        ) : (
-          visibleItems.map((item) => {
-            const k = keyOf(item);
-            const full = joinPosix(path, item.name);
-            const sizeToShow = item.isDirectory
-              ? typeof item.size === 'number'
-                ? item.size
-                : folderSizes[full]
-              : item.size;
-            return (
-              <div
-                key={k}
-                onDoubleClick={() => onRowDoubleClick(item)}
-                onContextMenu={(e) => onRowContextMenu(e, item)}
-                className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${item.name}`}
-                  checked={isSelected(k)}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    toggleOne(k);
-                  }}
-                  onClick={(e) => e.stopPropagation()} // checkboxes don't open items
-                />
-                <div className="libd-name" title={item.name}>
-                  <FontAwesomeIcon
-                    icon={item.isDirectory ? faFolder : faFile}
-                    className={`libd-fa ${
-                      item.isDirectory ? 'libd-folder' : 'libd-file'
-                    }`}
-                    style={item.isDirectory ? { color: '#f4c20d' } : undefined}
+        {/* Scrollable body */}
+        <div className="libd-tbody-scroll">
+          {visibleItems.length === 0 && !loading ? (
+            <div className="libd-empty" role="status">
+              {normalizedQuery
+                ? 'No matching files or folders.'
+                : 'There is no file and folder'}
+            </div>
+          ) : (
+            visibleItems.map((item) => {
+              const k = keyOf(item);
+              const full = joinPosix(path, item.name);
+              const sizeToShow = item.isDirectory
+                ? typeof item.size === 'number'
+                  ? item.size
+                  : folderSizes[full]
+                : item.size;
+              return (
+                <div
+                  key={k}
+                  onDoubleClick={() => onRowDoubleClick(item)}
+                  onContextMenu={(e) => onRowContextMenu(e, item)}
+                  className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${item.name}`}
+                    checked={isSelected(k)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      toggleOne(k);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  {renderHighlightedName(item.name)}
+                  <div className="libd-name" title={item.name}>
+                    <FontAwesomeIcon
+                      icon={item.isDirectory ? faFolder : faFile}
+                      className={`libd-fa ${
+                        item.isDirectory ? 'libd-folder' : 'libd-file'
+                      }`}
+                      style={
+                        item.isDirectory ? { color: '#f4c20d' } : undefined
+                      }
+                    />
+                    {renderHighlightedName(item.name)}
+                  </div>
+                  <div className="libd-right libd-muted">
+                    {typeof sizeToShow === 'number'
+                      ? fmtBytes(sizeToShow)
+                      : '—'}
+                  </div>
+                  <div className="libd-right libd-muted libd-col-mod">
+                    {fmtDate(item.modifiedAt)}
+                  </div>
                 </div>
-                <div className="libd-right libd-muted">
-                  {typeof sizeToShow === 'number' ? fmtBytes(sizeToShow) : '—'}
-                </div>
-                <div className="libd-right libd-muted libd-col-mod">
-                  {fmtDate(item.modifiedAt)}
-                </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Context Menu */}

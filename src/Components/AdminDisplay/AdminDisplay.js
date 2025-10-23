@@ -1,4 +1,3 @@
-// src/Components/AdminDisplay/AdminDisplay.jsx
 import React, {
   useCallback,
   useEffect,
@@ -565,10 +564,9 @@ function AdminDisplay() {
         setPreviewData({ type: 'video', url, text: '' });
         setPreviewOpen(true);
       } else if (isTxt(item.name)) {
-        // Fetch the text content directly
         const resp = await axios.get(url, {
           responseType: 'text',
-          transformResponse: [(v) => v], // keep as raw string
+          transformResponse: [(v) => v],
           validateStatus: () => true,
         });
         if (resp.status >= 200 && resp.status < 300) {
@@ -582,7 +580,6 @@ function AdminDisplay() {
           throw new Error(resp?.data?.error || 'Preview failed.');
         }
       } else {
-        // Unknown type → download
         handleDownload(item);
       }
     } catch (err) {
@@ -592,7 +589,7 @@ function AdminDisplay() {
     }
   };
 
-  /* ===== Folder upload success hook (needed by <AdminUploadFolder/>) ===== */
+  /* ===== Folder upload success hook ===== */
   const handleFolderUploaded = useCallback(() => {
     setSuccessMsg('The folder uploaded successfully');
     fetchList();
@@ -638,19 +635,11 @@ function AdminDisplay() {
 
   /* ================= Render ================= */
   return (
-    <div className="libd-root">
-      {/* Toolbar wrapper */}
-      <div className="libd-toolbar" style={{ display: 'block', width: '100%' }}>
+    <div className="libd-root mb-4">
+      {/* Toolbar */}
+      <div className="libd-toolbar">
         {/* Row 1: Breadcrumb path */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 10,
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="libd-toolbar-row">
           <BredCrum
             className="libd-breadcrumb"
             path={path}
@@ -663,18 +652,9 @@ function AdminDisplay() {
           />
         </div>
 
-        {/* Row 2: Buttons (left) + Search (right) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            marginBottom: 12,
-          }}
-        >
-          <div className="libd-actions" style={{ marginLeft: 0 }}>
+        {/* Row 2: Buttons + Search */}
+        <div className="libd-toolbar-row libd-toolbar-actions">
+          <div className="libd-actions">
             <AdminUploadFile currentPath={path} onFileUploaded={fetchList} />
             <AdminUploadFolder
               currentPath={path}
@@ -707,7 +687,7 @@ function AdminDisplay() {
           <input
             ref={searchInputRef}
             type="text"
-            className="libd-input"
+            className="libd-input libd-input-search"
             placeholder="Search in this folder…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -715,7 +695,6 @@ function AdminDisplay() {
               if (e.key === 'Escape') setSearchTerm('');
             }}
             aria-label="Search files and folders in this folder"
-            style={{ width: 'min(420px, 90vw)' }}
           />
         </div>
       </div>
@@ -731,11 +710,13 @@ function AdminDisplay() {
       )}
       {loading && <div className="libd-alert libd-alert-info">Loading…</div>}
 
-      {/* Table */}
+      {/* ================== Scrollable table ================== */}
       <div className="libd-table">
+        {/* Header row */}
         <div className="libd-thead">
           <input
             type="checkbox"
+            className="libd-checkbox"
             aria-label="Select all"
             checked={
               visibleItems.length > 0 &&
@@ -752,58 +733,81 @@ function AdminDisplay() {
           <div className="libd-right libd-col-mod">Last modified</div>
         </div>
 
-        {visibleItems.length === 0 && !loading ? (
-          <div className="libd-empty" role="status">
-            {normalizedQuery
-              ? 'No matching files or folders.'
-              : 'No files or folders'}
-          </div>
-        ) : (
-          visibleItems.map((item) => {
-            const k = keyOf(item);
-            const full = joinPosix(path, item.name);
-            const sizeToShow = item.isDirectory
-              ? typeof item.size === 'number'
-                ? item.size
-                : folderSizes[full]
-              : item.size;
-            return (
-              <div
-                key={k}
-                onDoubleClick={() => onRowDoubleClick(item)}
-                onContextMenu={(e) => onRowContextMenu(e, item)}
-                className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${item.name}`}
-                  checked={isSelected(k)}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    toggleOne(k);
-                  }}
-                  onClick={(e) => e.stopPropagation()} // don't open folder/file when clicking checkbox
-                />
-                <div className="libd-name" title={item.name}>
-                  <FontAwesomeIcon
-                    icon={item.isDirectory ? faFolder : faFile}
-                    className={`libd-fa ${
-                      item.isDirectory ? 'libd-folder' : 'libd-file'
-                    }`}
-                    style={item.isDirectory ? { color: '#f4c20d' } : undefined}
+        {/* Rows container with vertical scroll */}
+        <div className="libd-tbody-scroll">
+          {visibleItems.length === 0 && !loading ? (
+            <div className="libd-empty" role="status">
+              {normalizedQuery
+                ? 'No matching files or folders.'
+                : 'No files or folders'}
+            </div>
+          ) : (
+            visibleItems.map((item) => {
+              const k = joinPosix(path, item.name);
+              const full = joinPosix(path, item.name);
+              const sizeToShow = item.isDirectory
+                ? typeof item.size === 'number'
+                  ? item.size
+                  : folderSizes[full]
+                : item.size;
+              return (
+                <div
+                  key={k}
+                  onDoubleClick={() => onRowDoubleClick(item)}
+                  onContextMenu={(e) => onRowContextMenu(e, item)}
+                  className={`libd-row ${selected.has(k) ? 'is-selected' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="libd-checkbox"
+                    aria-label={`Select ${item.name}`}
+                    checked={selected.has(k)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(k)) next.delete(k);
+                        else next.add(k);
+                        return next;
+                      });
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  {renderHighlightedName(item.name)}
+
+                  {/* Name */}
+                  <div
+                    className="libd-name"
+                    data-label="Name"
+                    title={item.name}
+                  >
+                    <FontAwesomeIcon
+                      icon={item.isDirectory ? faFolder : faFile}
+                      className={`libd-fa ${
+                        item.isDirectory ? 'libd-folder' : 'libd-file'
+                      }`}
+                    />
+                    {renderHighlightedName(item.name)}
+                  </div>
+
+                  {/* Size */}
+                  <div className="libd-right libd-size" data-label="Size">
+                    {typeof sizeToShow === 'number'
+                      ? fmtBytes(sizeToShow)
+                      : '—'}
+                  </div>
+
+                  {/* Last modified */}
+                  <div
+                    className="libd-right libd-col-mod libd-modified"
+                    data-label="Last modified"
+                  >
+                    {fmtDate(item.modifiedAt)}
+                  </div>
                 </div>
-                <div className="libd-right libd-muted">
-                  {typeof sizeToShow === 'number' ? fmtBytes(sizeToShow) : '—'}
-                </div>
-                <div className="libd-right libd-muted libd-col-mod">
-                  {fmtDate(item.modifiedAt)}
-                </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Context Menu */}

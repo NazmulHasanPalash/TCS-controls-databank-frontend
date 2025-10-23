@@ -514,7 +514,6 @@ function LibraryDisplay() {
           return next;
         });
       } else {
-        // If your backend supports /api/delete-multi, replace this loop with one call
         for (const it of confirmItems) {
           const res = await axios.post(
             `${API_BASE}/api/delete`,
@@ -612,7 +611,6 @@ function LibraryDisplay() {
     if (item.isDirectory) return;
     const filePath = joinPosix(path, item.name);
 
-    // Clear any previous object URL to avoid leaks
     revokeObjectUrl();
 
     try {
@@ -637,7 +635,6 @@ function LibraryDisplay() {
         setPreviewData({ type: 'video', url, text: '', name: item.name });
         setPreviewOpen(true);
       } else if (isHtml(item.name)) {
-        // Render HTML inside a sandboxed iframe
         const url = await fetchBlobUrl(filePath);
         objectUrlRef.current = url;
         setPreviewData({ type: 'iframe', url, text: '', name: item.name });
@@ -656,10 +653,8 @@ function LibraryDisplay() {
         });
         setPreviewOpen(true);
       } else if (isOffice(item.name)) {
-        // Not directly previewable — download instead
         handleDownload(item);
       } else {
-        // Unknown type — try opening raw download in a new tab
         const rawUrl = `${API_BASE}/api/download?path=${encodeURIComponent(
           filePath
         )}`;
@@ -673,7 +668,6 @@ function LibraryDisplay() {
     }
   };
 
-  // Revoke object URL when preview closes/unmounts
   useEffect(() => {
     if (!previewOpen) {
       revokeObjectUrl();
@@ -682,7 +676,7 @@ function LibraryDisplay() {
     return () => revokeObjectUrl();
   }, [previewOpen]);
 
-  /* ===== Folder upload success hook (needed by <LibraryUploadFolder/>) ===== */
+  /* ===== Folder upload success hook ===== */
   const handleFolderUploaded = useCallback(() => {
     setSuccessMsg('The folder uploaded successfully');
     fetchList();
@@ -730,17 +724,9 @@ function LibraryDisplay() {
   return (
     <div className="libd-root">
       {/* Toolbar wrapper */}
-      <div className="libd-toolbar" style={{ display: 'block', width: '100%' }}>
+      <div className="libd-toolbar">
         {/* Row 1: Breadcrumb path */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 10,
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="libd-toolbar-row">
           <BredCrum
             className="libd-breadcrumb"
             path={path}
@@ -753,18 +739,9 @@ function LibraryDisplay() {
           />
         </div>
 
-        {/* Row 2: Buttons (left) + Search (right) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            marginBottom: 12,
-          }}
-        >
-          <div className="libd-actions" style={{ marginLeft: 0 }}>
+        {/* Row 2: Buttons + Search */}
+        <div className="libd-toolbar-row libd-toolbar-actions">
+          <div className="libd-actions">
             <LibraryUploadFile currentPath={path} onFileUploaded={fetchList} />
             <LibraryUploadFolder
               currentPath={path}
@@ -797,7 +774,7 @@ function LibraryDisplay() {
           <input
             ref={searchInputRef}
             type="text"
-            className="libd-input"
+            className="libd-input libd-input-search"
             placeholder="Search in this folder…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -805,7 +782,6 @@ function LibraryDisplay() {
               if (e.key === 'Escape') setSearchTerm('');
             }}
             aria-label="Search files and folders in this folder"
-            style={{ width: 'min(420px, 90vw)' }}
           />
         </div>
       </div>
@@ -821,8 +797,9 @@ function LibraryDisplay() {
       )}
       {loading && <div className="libd-alert libd-alert-info">Loading…</div>}
 
-      {/* Table */}
+      {/* ================== Scrollable table ================== */}
       <div className="libd-table">
+        {/* Header row */}
         <div className="libd-thead">
           <input
             type="checkbox"
@@ -842,58 +819,71 @@ function LibraryDisplay() {
           <div className="libd-right libd-col-mod">Last modified</div>
         </div>
 
-        {visibleItems.length === 0 && !loading ? (
-          <div className="libd-empty" role="status">
-            {normalizedQuery
-              ? 'No matching files or folders.'
-              : 'No files or folders'}
-          </div>
-        ) : (
-          visibleItems.map((item) => {
-            const k = keyOf(item);
-            const full = joinPosix(path, item.name);
-            const sizeToShow = item.isDirectory
-              ? typeof item.size === 'number'
-                ? item.size
-                : folderSizes[full]
-              : item.size;
-            return (
-              <div
-                key={k}
-                onDoubleClick={() => onRowDoubleClick(item)}
-                onContextMenu={(e) => onRowContextMenu(e, item)}
-                className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${item.name}`}
-                  checked={isSelected(k)}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    toggleOne(k);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <div className="libd-name" title={item.name}>
-                  <FontAwesomeIcon
-                    icon={item.isDirectory ? faFolder : faFile}
-                    className={`libd-fa ${
-                      item.isDirectory ? 'libd-folder' : 'libd-file'
-                    }`}
-                    style={item.isDirectory ? { color: '#f4c20d' } : undefined}
+        {/* Body with its own vertical scrollbar */}
+        <div className="libd-tbody-scroll">
+          {visibleItems.length === 0 && !loading ? (
+            <div className="libd-empty" role="status">
+              {normalizedQuery
+                ? 'No matching files or folders.'
+                : 'No files or folders'}
+            </div>
+          ) : (
+            visibleItems.map((item) => {
+              const k = keyOf(item);
+              const full = joinPosix(path, item.name);
+              const sizeToShow = item.isDirectory
+                ? typeof item.size === 'number'
+                  ? item.size
+                  : folderSizes[full]
+                : item.size;
+              return (
+                <div
+                  key={k}
+                  onDoubleClick={() => onRowDoubleClick(item)}
+                  onContextMenu={(e) => onRowContextMenu(e, item)}
+                  className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${item.name}`}
+                    checked={isSelected(k)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      toggleOne(k);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  {renderHighlightedName(item.name)}
+
+                  {/* Name */}
+                  <div className="libd-name" title={item.name}>
+                    <FontAwesomeIcon
+                      icon={item.isDirectory ? faFolder : faFile}
+                      className={`libd-fa ${
+                        item.isDirectory ? 'libd-folder' : 'libd-file'
+                      }`}
+                    />
+                    {renderHighlightedName(item.name)}
+                  </div>
+
+                  {/* Size */}
+                  <div className="libd-right libd-muted" data-label="Size">
+                    {typeof sizeToShow === 'number'
+                      ? fmtBytes(sizeToShow)
+                      : '—'}
+                  </div>
+
+                  {/* Last modified */}
+                  <div
+                    className="libd-right libd-muted libd-col-mod"
+                    data-label="Last modified"
+                  >
+                    {fmtDate(item.modifiedAt)}
+                  </div>
                 </div>
-                <div className="libd-right libd-muted">
-                  {typeof sizeToShow === 'number' ? fmtBytes(sizeToShow) : '—'}
-                </div>
-                <div className="libd-right libd-muted libd-col-mod">
-                  {fmtDate(item.modifiedAt)}
-                </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Context Menu */}
@@ -996,7 +986,6 @@ function LibraryDisplay() {
               title="html"
               src={previewData.url}
               className="libd-preview-pdf"
-              // sandbox to keep HTML safe, allow forms/scripts within blob
               sandbox="allow-same-origin allow-forms allow-scripts"
             />
           )}

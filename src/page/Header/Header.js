@@ -1,21 +1,49 @@
+// src/components/Header/Header.jsx
 import React from 'react';
 import './Header.css';
 import { HashLink } from 'react-router-hash-link';
-import useAuth from '../../Components/Hooks/useAuth';
+
+// 👉 roles (user, isLoading, isAdmin, isModerator, isOperator, …)
+import useAuthRole from '../../Components/Hooks/useAuthRole'; // adjust path if yours differs
+
+// 👉 optional: whatever hook you already use for logout
+import useAuth from '../../Components/Hooks/useAuth'; // adjust/remove if your project differs
 
 const Header = () => {
-  const { user, loading, signOut, logOut } = useAuth(); // support either name from your provider
+  // Role & user state
+  const { user, isLoading, isAdmin, isModerator, isOperator } = useAuthRole();
+
+  // Logout (support your existing hook if available)
+  const { logOut, signOut } = (function safeUseAuth() {
+    try {
+      return useAuth?.() || {};
+    } catch {
+      return {};
+    }
+  })();
 
   const handleLogout = async () => {
     try {
-      // call whichever exists
-      if (typeof logOut === 'function') await logOut();
-      else if (typeof signOut === 'function') await signOut();
+      if (typeof logOut === 'function') {
+        await logOut();
+      } else if (typeof signOut === 'function') {
+        await signOut();
+      } else {
+        // No hook? Try Firebase global if you have it available
+        // await auth.signOut();
+      }
+      // Optional: send the user to login after logout (HashRouter style)
+      window.location.hash = '#/login';
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('Logout failed:', e);
     }
   };
+
+  // Visibility flags per your rules
+  const canSeeAdminLink = !!isAdmin;
+  const canSeeModeratorLink = isModerator || isAdmin; // admin can also see moderator section
+  const canSeeOperatorLink = isOperator || isModerator || isAdmin; // everyone who is signed in in your schema
 
   return (
     <div className="w-100 mx-auto margin-header">
@@ -34,7 +62,6 @@ const Header = () => {
           </button>
 
           <div className="collapse navbar-collapse" id="navbarTogglerDemo01">
-            {/* Use HashLink so SPA routing doesn’t reload the page */}
             <HashLink className="navbar-brand mx-auto" to="/home#home">
               <span className="span-style text-primary icon-style">
                 <img
@@ -47,7 +74,7 @@ const Header = () => {
 
             <ul className="navbar-nav mx-auto mb-2 mb-lg-0 link-style d-flex align-items-center">
               {/* While auth is loading, avoid flicker */}
-              {loading ? null : user?.email ? (
+              {isLoading ? null : user?.email ? (
                 <>
                   <li className="nav-item">
                     <HashLink
@@ -58,6 +85,7 @@ const Header = () => {
                     </HashLink>
                   </li>
 
+                  {/* Normal user file sections (always visible to signed-in users) */}
                   <li className="nav-item dropdown">
                     <button
                       className="btn header-text-style dropdown-toggle active"
@@ -123,31 +151,41 @@ const Header = () => {
                     </ul>
                   </li>
 
-                  <li className="nav-item">
-                    <HashLink
-                      className="nav-link active header-text-style"
-                      to="/moderator"
-                    >
-                      Moderator
-                    </HashLink>
-                  </li>
-                  <li className="nav-item">
-                    <HashLink
-                      className="nav-link active header-text-style"
-                      to="/operator"
-                    >
-                      Operator
-                    </HashLink>
-                  </li>
-                  <li className="nav-item">
-                    <HashLink
-                      className="nav-link active header-text-style"
-                      to="/admin"
-                    >
-                      Admin
-                    </HashLink>
-                  </li>
+                  {/* Role sections */}
+                  {canSeeModeratorLink && (
+                    <li className="nav-item">
+                      <HashLink
+                        className="nav-link active header-text-style"
+                        to="/moderator"
+                      >
+                        Moderator
+                      </HashLink>
+                    </li>
+                  )}
 
+                  {canSeeOperatorLink && (
+                    <li className="nav-item">
+                      <HashLink
+                        className="nav-link active header-text-style"
+                        to="/operator"
+                      >
+                        Operator
+                      </HashLink>
+                    </li>
+                  )}
+
+                  {canSeeAdminLink && (
+                    <li className="nav-item">
+                      <HashLink
+                        className="nav-link active header-text-style"
+                        to="/admin"
+                      >
+                        Admin
+                      </HashLink>
+                    </li>
+                  )}
+
+                  {/* Logout */}
                   <li className="nav-item header-text-style">
                     <button
                       onClick={handleLogout}

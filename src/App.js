@@ -1,71 +1,89 @@
+// src/App.js
 import './App.css';
 import { BrowserRouter, Switch, Route } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+
 import Home from './page/Home/Home';
 import NotFound from './page/NotFound/NotFound';
 import PrivateRouter from './Components/PrivateRouter/PrivateRouter';
 import Footer from './page/Footer/Footer';
 import AuthProvider from './Components/Context/AuthProvider';
 import Login from './page/Login/Login';
+
 import Administrative from './page/Administrative/Administrative';
 import Storico from './page/Storico/Storico';
 import SpaceUp from './page/SpaceUp/SpaceUp';
 import CustomerOrder from './page/CustomerOrder/CustomerOrder';
 import Library from './page/Library/Library';
 import SourcingAndPricing from './page/SourcingAndPricing/SourcingAndPricing';
+
 import Moderator from './page/Moderator/Moderator';
 import Operator from './page/Operator/Operator';
 import Admin from './page/Admin/Admin';
+
+import AdminRouter from './Components/AdminRouter/AdminRouter';
+import ModeratorRouter from './Components/ModeratorRouter/ModeratorRouter';
+import OperatorRouter from './Components/OperatorRouter/OperatorRouter';
+
 function App() {
   return (
     <div className="App">
       <AuthProvider>
         <BrowserRouter>
           <Switch>
+            {/* Public */}
             <Route exact path="/">
-              <Login></Login>
+              <Login />
             </Route>
+            <Route exact path="/login">
+              <Login />
+            </Route>
+
+            {/* Authenticated (any signed-in user) */}
             <PrivateRouter exact path="/home">
-              <Home></Home>
+              <Home />
             </PrivateRouter>
 
-            <Route exact path="/login">
-              <Login></Login>
-            </Route>
+            {/* File manager sections (any signed-in user) */}
             <PrivateRouter exact path="/files/library">
-              <Library></Library>
+              <Library />
             </PrivateRouter>
             <PrivateRouter exact path="/files/sourcingAndPricing">
-              <SourcingAndPricing></SourcingAndPricing>
+              <SourcingAndPricing />
             </PrivateRouter>
             <PrivateRouter exact path="/files/administrative">
-              <Administrative></Administrative>
+              <Administrative />
             </PrivateRouter>
             <PrivateRouter exact path="/files/customerOrder">
-              <CustomerOrder></CustomerOrder>
+              <CustomerOrder />
             </PrivateRouter>
             <PrivateRouter exact path="/files/spaceUp1">
-              <Storico></Storico>
+              <Storico />
             </PrivateRouter>
             <PrivateRouter exact path="/files/spaceUp2">
-              <SpaceUp></SpaceUp>
+              <SpaceUp />
             </PrivateRouter>
 
-            <PrivateRouter exact path="/moderator">
-              <Moderator></Moderator>
-            </PrivateRouter>
-            <PrivateRouter exact path="/operator">
-              <Operator></Operator>
-            </PrivateRouter>
-            <PrivateRouter exact path="/admin">
-              <Admin></Admin>
-            </PrivateRouter>
+            {/* Role-guarded sections */}
+            <ModeratorRouter exact path="/moderator">
+              <Moderator />
+            </ModeratorRouter>
 
+            <OperatorRouter exact path="/operator">
+              <Operator />
+            </OperatorRouter>
+
+            <AdminRouter exact path="/admin">
+              <Admin />
+            </AdminRouter>
+
+            {/* 404 */}
             <Route exact path="*">
-              <NotFound></NotFound>
+              <NotFound />
             </Route>
           </Switch>
-          <Footer></Footer>
+
+          <Footer />
         </BrowserRouter>
       </AuthProvider>
     </div>

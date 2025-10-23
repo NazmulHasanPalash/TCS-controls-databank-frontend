@@ -1,0 +1,424 @@
+/* ---------- Base + fluid type ---------- */
+:root {
+  --gap: 12px;
+  --radius: 10px;
+  --border: 1px solid #e5e7eb;
+  --bg: #fff;
+  --muted: #6b7280;
+  --chip: #f3f4f6;
+  --danger: #dc2626;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+
+  /* Fluid font sizing */
+  --font-size: clamp(14px, 0.9vw + 12px, 16px);
+  --font-small: clamp(12px, 0.7vw + 10px, 14px);
+
+  /* Fluid icon size */
+  --icon-size: clamp(16px, 0.9vw + 14px, 20px);
+
+  /* Fluid checkbox size */
+  --checkbox-size: clamp(18px, 1.2vw + 14px, 22px);
+
+  /* Column widths (will also adapt in media queries) */
+  --col-size: 140px;
+  --col-mod: 200px;
+}
+
+html,
+body,
+.libd-root {
+  font-size: var(--font-size);
+}
+
+/* ---------- Layout shells ---------- */
+.libd-root {
+  background: transparent;
+}
+
+.libd-toolbar {
+  display: grid;
+  gap: var(--gap);
+  margin-bottom: 12px;
+}
+.libd-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  flex-wrap: wrap;
+}
+.libd-toolbar-actions {
+  justify-content: space-between;
+}
+
+.libd-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- Inputs & chips ---------- */
+.libd-input {
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  min-width: 220px;
+  background: #fff;
+  font-size: 1em;
+}
+.libd-input-search {
+  width: min(420px, 92vw);
+}
+
+.libd-pill {
+  border: var(--border);
+  background: var(--chip);
+  border-radius: 999px;
+  padding: 6px 10px;
+  cursor: pointer;
+  line-height: 1.2;
+  font-size: 0.95em;
+}
+.libd-pill.libd-danger {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ---------- Alerts ---------- */
+.libd-alert {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin: 6px 0;
+}
+.libd-alert-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.libd-alert-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+.libd-alert-info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+/* ---------- Table container ---------- */
+.libd-table {
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  /* Horizontal scroll safety for very narrow screens */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Header row */
+.libd-thead {
+  display: grid;
+  grid-template-columns: var(--checkbox-size) 1fr var(--col-size) var(--col-mod);
+  gap: 8px;
+  align-items: center;
+  font-weight: 700;
+  background: #f9fafb;
+  border-bottom: var(--border);
+  padding: 10px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Body scroll area for long folders */
+.libd-tbody-scroll {
+  max-height: min(60vh, 720px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Row */
+.libd-row {
+  display: grid;
+  grid-template-columns: var(--checkbox-size) 1fr var(--col-size) var(--col-mod);
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #fff;
+}
+.libd-row:last-child {
+  border-bottom: 0;
+}
+.libd-row:hover {
+  background: #fcfcfd;
+}
+.libd-row.is-selected {
+  background: #f0f9ff;
+}
+
+/* Cells */
+.libd-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.libd-right {
+  text-align: right;
+  white-space: nowrap;
+}
+.libd-col-mod {
+  color: var(--muted);
+}
+mark {
+  background: #fff176;
+  color: inherit;
+  padding: 0 0.15em;
+  border-radius: 2px;
+}
+
+/* Icons: scale with variable */
+.libd-fa {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  font-size: var(--icon-size) !important;
+  flex: 0 0 auto;
+}
+.libd-folder {
+  color: #f4c20d;
+}
+
+/* Checkbox: larger tap target on mobile */
+.libd-checkbox {
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+  accent-color: #111827;
+  cursor: pointer;
+}
+
+/* Empty state */
+.libd-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95em;
+}
+
+/* ---------- Context menu ---------- */
+.libd-menu {
+  position: fixed;
+  background: #fff;
+  border: var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  min-width: 220px;
+  z-index: 30;
+  overflow: hidden;
+  font-size: 1em;
+}
+.libd-menu-title {
+  font-weight: 700;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f9fafb;
+}
+.libd-menu-btn {
+  display: block;
+  padding: 10px 12px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 0;
+  cursor: pointer;
+  font-size: 1em;
+}
+.libd-menu-btn:hover {
+  background: #f9fafb;
+}
+.libd-menu-danger {
+  color: var(--danger);
+}
+
+/* ---------- Modals ---------- */
+.libd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+.libd-modal {
+  width: min(720px, 96vw);
+  max-height: 86vh;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+.libd-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: var(--border);
+  background: #f9fafb;
+}
+.libd-modal-title {
+  font-weight: 800;
+  font-size: 1.05em;
+}
+.libd-modal-body {
+  padding: 14px;
+  overflow: auto;
+  font-size: 1em;
+}
+.libd-icon-btn {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 1.2em;
+}
+
+.libd-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+.libd-gap {
+  gap: 10px;
+}
+.libd-btn-primary,
+.libd-btn-secondary,
+.libd-btn-danger {
+  border-radius: 8px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 1em;
+}
+.libd-btn-primary {
+  background: #111827;
+  color: #fff;
+}
+.libd-btn-secondary {
+  background: #f3f4f6;
+  color: #111827;
+}
+.libd-btn-danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+/* Preview media */
+.libd-preview-media {
+  max-width: 100%;
+  max-height: 70vh;
+  display: block;
+}
+.libd-preview-pdf {
+  width: 100%;
+  height: min(70vh, 80vw);
+  border: 0;
+}
+.libd-preview-audio {
+  width: 100%;
+}
+.libd-preview-text {
+  background: #0b1022;
+  color: #e8eefc;
+  padding: 12px;
+  border-radius: 8px;
+  max-height: 60vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+  font-size: clamp(12px, 0.7vw + 10px, 14px);
+}
+
+/* ---------- Responsive tweaks ---------- */
+
+/* Medium screens: lightly shrink right columns */
+@media (max-width: 1024px) {
+  :root {
+    --col-size: 120px;
+    --col-mod: 160px;
+    --icon-size: clamp(16px, 1vw + 14px, 20px);
+  }
+}
+
+/* Small screens: stack rows into cards, keep header minimal, larger checkbox for touch */
+@media (max-width: 680px) {
+  :root {
+    --col-size: 36%;
+    --col-mod: 44%;
+    --checkbox-size: clamp(20px, 2.7vw + 16px, 26px);
+    --icon-size: clamp(18px, 2.2vw + 14px, 24px);
+  }
+
+  .libd-table {
+    border-radius: 8px;
+  }
+
+  .libd-thead {
+    grid-template-columns: var(--checkbox-size) 1fr;
+    gap: 10px;
+  }
+  .libd-thead > :nth-child(3),
+  .libd-thead > :nth-child(4) {
+    display: none;
+  }
+
+  .libd-row {
+    grid-template-columns: var(--checkbox-size) 1fr;
+    gap: 8px;
+    align-items: start;
+  }
+
+  .libd-name {
+    font-weight: 700;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .libd-size,
+  .libd-modified {
+    grid-column: 2 / -1;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: var(--font-small);
+    color: var(--muted);
+  }
+  .libd-size::before,
+  .libd-modified::before {
+    content: attr(data-label);
+    color: #111827;
+    font-weight: 700;
+    padding-right: 10px;
+  }
+
+  .libd-tbody-scroll {
+    max-height: min(58vh, 70vw);
+  }
+}
+
+/* Ultra-narrow: allow horizontal scroll as a fallback */
+@media (max-width: 360px) {
+  .libd-table {
+    overflow-x: auto;
+  }
+}
