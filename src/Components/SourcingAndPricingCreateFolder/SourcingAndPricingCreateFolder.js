@@ -7,16 +7,24 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './SourcingAndPricingCreateFolder.css';
 
-// Your API base + sourcing & pricing base on FTP
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+/* ============== Config ============== */
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
 const SNP_BASE = '/sourcing-pricing';
 
+/* ============== Helpers ============== */
 /** Build the parent FTP path based on your folder object shape */
 function resolveParentPath(currentFolder) {
   if (
     !currentFolder ||
     currentFolder === 'root folder' ||
-    currentFolder._id === 'root'
+    currentFolder?._id === 'root'
   ) {
     return SNP_BASE;
   }
@@ -42,7 +50,7 @@ function resolveParentPath(currentFolder) {
   return parts.join('/').replace(/\/{2,}/g, '/');
 }
 
-/** Sanitize a folder name: remove slashes, collapse spaces, limit chars, disallow "."/".." */
+/** Sanitize a folder name: remove slashes, collapse spaces, disallow "."/".." */
 function sanitizeFolderName(raw) {
   const name = String(raw || '')
     .trim()
@@ -53,6 +61,7 @@ function sanitizeFolderName(raw) {
   return name;
 }
 
+/* ============== Component ============== */
 const SourcingAndPricingCreateFolder = ({
   currentFolder,
   onLibraryCreateFolder,
@@ -177,6 +186,7 @@ const SourcingAndPricingCreateFolder = ({
                 onChange={(e) => setFolderName(e.target.value)}
                 autoFocus
                 disabled={loading}
+                aria-label="New folder name"
               />
             </Form.Group>
             <Button

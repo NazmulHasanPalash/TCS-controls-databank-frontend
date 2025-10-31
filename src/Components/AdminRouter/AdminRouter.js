@@ -1,20 +1,22 @@
 // src/routers/AdminRouter.js
 import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
-import useAuthRole from '../Hooks/useAuthRole'; // ✅ correct import
+import useAuthRole from '../Hooks/useAuthRole'; // ✅ correct path & casing
 
 const AdminRouter = ({ children, ...rest }) => {
-  const { user, isLoading, isAdmin } = useAuthRole(); // ✅ use the role hook
+  const { user, isLoading, isAdmin } = useAuthRole();
 
   if (isLoading) {
     return (
-      <div className="spinner-border text-primary" role="status">
+      <div
+        className="spinner-border text-primary"
+        role="status"
+        aria-live="polite"
+      >
         <span className="visually-hidden">Loading...</span>
       </div>
     );
   }
-
-  const noAccess = !!user && !isAdmin;
 
   return (
     <Route
@@ -22,17 +24,10 @@ const AdminRouter = ({ children, ...rest }) => {
       render={({ location }) =>
         user?.email && isAdmin ? (
           children
-        ) : user?.email && noAccess ? (
-          <Redirect
-            to={{
-              pathname: '/403', // or '/' if you prefer
-              state: { from: location },
-            }}
-          />
         ) : (
           <Redirect
             to={{
-              pathname: '/login',
+              pathname: '/',
               state: { from: location },
             }}
           />

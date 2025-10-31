@@ -8,10 +8,18 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './AdministrativeCreateFolder.css';
 
-// Your API base + administrative base on FTP
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+/* ================= Config ================= */
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
 const ADMIN_BASE = '/administrative';
 
+/* ================= Helpers ================= */
 /** Build the parent FTP path based on your folder object shape */
 function resolveParentPath(currentFolder) {
   if (
@@ -54,6 +62,7 @@ function sanitizeFolderName(raw) {
   return name;
 }
 
+/* ================= Component ================= */
 const AdministrativeCreateFolder = ({
   currentFolder,
   onAdministrativeCreateFolder,
@@ -109,7 +118,7 @@ const AdministrativeCreateFolder = ({
       const res = await fetch(`${API_BASE}/api/folder/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // add credentials: 'include' if your server uses cookies/sessions
+        credentials: 'include', // include cookies if your server uses sessions
         body: JSON.stringify({ parent: parentPath, name: clean }),
         signal: controller.signal,
       });
@@ -170,7 +179,10 @@ const AdministrativeCreateFolder = ({
             <div className="mb-2 small text-muted">
               Parent path: <code>{parentPath}</code>
             </div>
-            <Form.Group controlId="formFolderName" className="mb-3">
+            <Form.Group
+              controlId="formAdministrativeFolderName"
+              className="mb-3"
+            >
               <Form.Control
                 type="text"
                 placeholder="Enter folder name…"

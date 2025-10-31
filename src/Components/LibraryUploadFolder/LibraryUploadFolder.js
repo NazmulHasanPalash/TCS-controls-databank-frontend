@@ -17,7 +17,15 @@ import 'react-toastify/dist/ReactToastify.css';
 import './LibraryUploadFolder.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
+
 /** Hard root: cannot upload above this path */
 const LIB_ROOT = process.env.REACT_APP_START_PATH || '/library';
 
@@ -81,14 +89,14 @@ function TreeView({ node, depth = 0 }) {
   });
   return (
     <div style={{ marginLeft: depth ? 14 : 0 }}>
-      {entries.map((child) =>
+      {entries.map((child, idx) =>
         child.type === 'dir' ? (
-          <div key={`d-${depth}-${child.name}`}>
+          <div key={`d-${depth}-${idx}-${child.name}`}>
             <div className="text-muted small">📁 {child.name}</div>
             <TreeView node={child} depth={depth + 1} />
           </div>
         ) : (
-          <div key={`f-${depth}-${child.name}`} className="small">
+          <div key={`f-${depth}-${idx}-${child.name}`} className="small">
             ▸ {child.name}
           </div>
         )

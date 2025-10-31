@@ -1,4 +1,4 @@
-// AdministrativeDisplay.jsx
+// src/Components/AdministrativeDisplay/AdministrativeDisplay.jsx
 import React, {
   useCallback,
   useEffect,
@@ -19,14 +19,21 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFile } from '@fortawesome/free-solid-svg-icons';
 
 /* ================= Config ================= */
-const API_BASE = (
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
   process.env.REACT_APP_API_BASE || 'http://localhost:5000'
-).replace(/\/+$/, '');
-const START_PATH =
-  (process.env.REACT_APP_ADMIN_START_PATH || '/administrative').replace(
-    /\/+$/,
-    ''
-  ) || '/administrative';
+);
+
+const START_PATH = (() => {
+  const raw = (
+    process.env.REACT_APP_ADMIN_START_PATH || '/administrative'
+  ).replace(/\/+$/, '');
+  return raw || '/administrative';
+})();
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -40,7 +47,7 @@ const normalizePath = (p) =>
 const joinPosix = (a, b) => normalizePath(`${a || ''}/${b || ''}`);
 
 const fmtBytes = (bytes) => {
-  if (bytes == null || isNaN(bytes)) return '—';
+  if (bytes == null || Number.isNaN(Number(bytes))) return '—';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let i = 0;
   let n = Number(bytes);
@@ -66,11 +73,12 @@ const fmtDate = (d) => {
 /* ---- file type helpers ---- */
 const isImg = (n) => /\.(png|jpe?g|gif|webp|svg)$/i.test(n);
 const isTxt = (n) =>
-  /\.(txt|json|xml|csv|md|html?|css|js|ts|tsx|jsx|yml|yaml|log)$/i.test(n);
+  /\.(txt|json|xml|csv|md|markdown|html?|css|js|mjs|cjs|ts|tsx|jsx|yml|yaml|log)$/i.test(
+    n
+  );
 const isPdf = (n) => /\.pdf$/i.test(n);
 const isAud = (n) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(n);
 const isVid = (n) => /\.(mp4|webm|ogv|mov|mkv)$/i.test(n);
-const isOffice = (n) => /\.(docx?|xlsx?|pptx?)$/i.test(n);
 
 const sortItems = (items) =>
   [...items].sort((a, b) => {
@@ -113,7 +121,7 @@ const collapseSelection = (paths) => {
   return result;
 };
 
-/* =============== Small Modal =============== */
+/* =============== Small Modal (custom) =============== */
 function Modal({ title, children, onClose, showClose = true }) {
   return (
     <div
@@ -255,7 +263,7 @@ function AdministrativeDisplay() {
     try {
       const { data } = await axios.get(
         `${API_BASE}/api/list?path=${encodeURIComponent(path)}`,
-        { signal: controller.signal }
+        { signal: controller.signal, withCredentials: true }
       );
       if (!data?.ok) throw new Error(data?.error || 'Failed to fetch.');
       const normalized = (data.items || []).map((it) => ({
@@ -311,6 +319,7 @@ function AdministrativeDisplay() {
         try {
           const r1 = await axios.get(`${API_BASE}/api/size`, {
             params: { path: full },
+            withCredentials: true,
           });
           if (r1?.data?.ok && typeof r1.data.size === 'number')
             got = r1.data.size;
@@ -319,6 +328,7 @@ function AdministrativeDisplay() {
           try {
             const r2 = await axios.get(`${API_BASE}/api/folder/size`, {
               params: { path: full },
+              withCredentials: true,
             });
             if (r2?.data?.ok && typeof r2.data.size === 'number')
               got = r2.data.size;
@@ -355,7 +365,6 @@ function AdministrativeDisplay() {
   }, []);
 
   /* ===== Selection helpers ===== */
-  const keyOf = (item) => joinPosix(path, item.name);
   const isSelected = (k) => selected.has(k);
   const toggleOne = (k) =>
     setSelected((prev) => {
@@ -430,9 +439,11 @@ function AdministrativeDisplay() {
   const zipAndDownloadFolder = async (folderName) => {
     const fullPath = joinPosix(path, folderName);
     try {
-      const { data } = await axios.post(`${API_BASE}/api/zip`, {
-        path: fullPath,
-      });
+      const { data } = await axios.post(
+        `${API_BASE}/api/zip`,
+        { path: fullPath },
+        { withCredentials: true }
+      );
       if (data && data.ok && data.downloadId) {
         const url = `${API_BASE}/api/zip/${encodeURIComponent(
           data.downloadId
@@ -475,15 +486,19 @@ function AdministrativeDisplay() {
     setConfirmSubmitting(true);
     setWorking(true);
     try {
-      // Backend supports /api/delete (single). Delete sequentially.
       for (const it of confirmItems) {
-        const res = await axios.post(
-          `${API_BASE}/api/delete`,
-          { path: it.fullPath },
-          { validateStatus: () => true }
-        );
-        if (!(res.status === 200 && res.data?.ok)) {
-          throw new Error(res.data?.error || `Delete failed: ${it.name}`);
+        if (it.isDirectory) {
+          const res = await axios.delete(`${API_BASE}/api/folder`, {
+            data: { path: it.fullPath },
+            withCredentials: true,
+          });
+          if (!res?.data?.ok) throw new Error(res?.data?.error || it.name);
+        } else {
+          const res = await axios.delete(`${API_BASE}/api/file`, {
+            data: { path: it.fullPath },
+            withCredentials: true,
+          });
+          if (!res?.data?.ok) throw new Error(res?.data?.error || it.name);
         }
       }
       clearSelection();
@@ -518,16 +533,18 @@ function AdministrativeDisplay() {
       const from = joinPosix(path, item.name);
       if (item.isDirectory) {
         const to = joinPosix(path, newName);
-        const { data } = await axios.put(`${API_BASE}/api/folder`, {
-          from,
-          to,
-        });
+        const { data } = await axios.put(
+          `${API_BASE}/api/folder`,
+          { from, to },
+          { withCredentials: true }
+        );
         if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
       } else {
-        const { data } = await axios.post(`${API_BASE}/api/file/rename`, {
-          from,
-          newName,
-        });
+        const { data } = await axios.post(
+          `${API_BASE}/api/file/rename`,
+          { from, newName },
+          { withCredentials: true }
+        );
         if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
       }
       setRenameOpen(false);
@@ -544,43 +561,55 @@ function AdministrativeDisplay() {
   const handlePreview = async (item) => {
     if (item.isDirectory) return;
     const filePath = joinPosix(path, item.name);
-    const previewURL = `${API_BASE}/api/preview?path=${encodeURIComponent(
+    const downloadURL = `${API_BASE}/api/download?path=${encodeURIComponent(
       filePath
     )}`;
 
     try {
       if (isImg(item.name)) {
-        setPreviewData({ type: 'image', url: previewURL, text: '' });
+        setPreviewData({ type: 'image', url: downloadURL, text: '' });
         setPreviewOpen(true);
       } else if (isPdf(item.name)) {
-        setPreviewData({ type: 'pdf', url: previewURL, text: '' });
+        setPreviewData({ type: 'pdf', url: downloadURL, text: '' });
         setPreviewOpen(true);
       } else if (isAud(item.name)) {
-        setPreviewData({ type: 'audio', url: previewURL, text: '' });
+        setPreviewData({ type: 'audio', url: downloadURL, text: '' });
         setPreviewOpen(true);
       } else if (isVid(item.name)) {
-        setPreviewData({ type: 'video', url: previewURL, text: '' });
+        setPreviewData({ type: 'video', url: downloadURL, text: '' });
         setPreviewOpen(true);
       } else if (isTxt(item.name)) {
-        const resp = await axios.get(previewURL, {
-          responseType: 'text',
-          transformResponse: [(v) => v],
+        const resp = await axios.get(`${API_BASE}/api/file/content`, {
+          params: { path: filePath, encoding: 'utf8' },
+          withCredentials: true,
           validateStatus: () => true,
         });
-        if (resp.status >= 200 && resp.status < 300) {
+        if (resp?.data?.ok) {
           setPreviewData({
             type: 'text',
             url: '',
-            text: String(resp.data || ''),
+            text: String(resp.data.content || ''),
           });
           setPreviewOpen(true);
         } else {
-          throw new Error(resp?.data?.error || 'Preview failed.');
+          const raw = await axios.get(downloadURL, {
+            responseType: 'text',
+            transformResponse: [(v) => v],
+            validateStatus: () => true,
+          });
+          if (raw.status >= 200 && raw.status < 300) {
+            setPreviewData({
+              type: 'text',
+              url: '',
+              text: String(raw.data || ''),
+            });
+            setPreviewOpen(true);
+          } else {
+            throw new Error(resp?.data?.error || 'Preview failed.');
+          }
         }
-      } else if (isOffice(item.name)) {
-        handleDownload(item); // download office docs
       } else {
-        window.open(previewURL, '_blank', 'noopener,noreferrer');
+        handleDownload(item);
       }
     } catch (err) {
       alert(`Preview failed: ${err?.message || 'Unknown error'}`);
@@ -662,15 +691,15 @@ function AdministrativeDisplay() {
           />
         </div>
 
-        {/* Row 2: Buttons (left) + Search (right) */}
+        {/* Row 2: ALL BUTTONS RIGHT */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end', // ⬅️ buttons right
             flexWrap: 'wrap',
-            marginBottom: 12,
+            marginBottom: 8,
           }}
         >
           <div className="libd-actions" style={{ marginLeft: 0 }}>
@@ -705,7 +734,17 @@ function AdministrativeDisplay() {
               🗑 Delete Selected ({selected.size})
             </button>
           </div>
+        </div>
 
+        {/* Row 3: Search input (left-aligned) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            marginBottom: 12,
+          }}
+        >
           <input
             ref={searchInputRef}
             type="text"
@@ -739,6 +778,7 @@ function AdministrativeDisplay() {
         <div className="libd-thead">
           <input
             type="checkbox"
+            className="libd-checkbox"
             aria-label="Select all"
             checked={
               visibleItems.length > 0 &&
@@ -772,7 +812,7 @@ function AdministrativeDisplay() {
                   ? item.size
                   : folderSizes[full]
                 : item.size;
-              const selectedRow = selected.has(k);
+              const selectedRow = isSelected(k);
 
               return (
                 <div
@@ -783,16 +823,12 @@ function AdministrativeDisplay() {
                 >
                   <input
                     type="checkbox"
+                    className="libd-checkbox"
                     aria-label={`Select ${item.name}`}
                     checked={selectedRow}
                     onChange={(e) => {
                       e.stopPropagation();
-                      setSelected((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(k)) next.delete(k);
-                        else next.add(k);
-                        return next;
-                      });
+                      toggleOne(k);
                     }}
                     onClick={(e) => e.stopPropagation()}
                   />
@@ -804,9 +840,6 @@ function AdministrativeDisplay() {
                       className={`libd-fa ${
                         item.isDirectory ? 'libd-folder' : 'libd-file'
                       }`}
-                      style={
-                        item.isDirectory ? { color: '#f4c20d' } : undefined
-                      }
                     />
                     {renderHighlightedName(item.name)}
                   </div>

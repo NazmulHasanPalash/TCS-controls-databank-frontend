@@ -10,12 +10,24 @@ import 'react-toastify/dist/ReactToastify.css';
 import './OperatorUploadFile.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
-const OPERATOR_ROOT =
-  (process.env.REACT_APP_OPERATOR_START_PATH || '/operator').replace(
-    /\/+$/,
-    ''
-  ) || '/operator';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
+
+const RAW_OP_ROOT = process.env.REACT_APP_OPERATOR_START_PATH || '/operator';
+const OPERATOR_ROOT = (function normRoot(r) {
+  const t =
+    '/' +
+    String(r || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '');
+  return t.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/operator';
+})(RAW_OP_ROOT);
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -28,9 +40,10 @@ const normalizePath = (p) =>
   ).replace(/\/{2,}/g, '/');
 
 const clampToOperator = (dest) => {
-  const root = normalizePath(OPERATOR_ROOT);
-  const wanted = normalizePath(dest || root);
-  return wanted.startsWith(root) ? wanted : root;
+  const root = OPERATOR_ROOT;
+  const wanted = normalizePath(dest || root).replace(/\/+$/, '');
+  if (wanted === root) return root;
+  return wanted.startsWith(root + '/') ? wanted : root;
 };
 
 const fmtBytes = (n) => {
@@ -121,6 +134,7 @@ const OperatorUploadFile = ({ currentPath, userId, onFileUploaded }) => {
         maxBodyLength: Infinity,
         timeout: 0,
         withCredentials: true,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
 
       // Accept either { ok, uploaded: { to } } or { ok, to }
@@ -144,7 +158,11 @@ const OperatorUploadFile = ({ currentPath, userId, onFileUploaded }) => {
       if (err?.name === 'CanceledError' || axios.isCancel?.(err)) {
         // canceled by user; toast already shown
       } else {
-        toast.error(`❌ Upload failed: ${err?.message || 'Unknown error'}`);
+        const msg =
+          err?.response?.data?.error ||
+          err?.message ||
+          'Upload failed. Please try again.';
+        toast.error(`❌ ${msg}`);
       }
     } finally {
       // finish bar visually only if it wasn't canceled

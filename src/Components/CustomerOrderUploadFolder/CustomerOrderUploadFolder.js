@@ -17,7 +17,15 @@ import 'react-toastify/dist/ReactToastify.css';
 import './CustomerOrderUploadFolder.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
+
 /** Hard root: cannot upload above this path */
 const CO_ROOT =
   process.env.REACT_APP_CUSTOMER_ORDER_START_PATH || '/customer-order';
@@ -82,14 +90,14 @@ function TreeView({ node, depth = 0 }) {
   });
   return (
     <div style={{ marginLeft: depth ? 14 : 0 }}>
-      {entries.map((child) =>
+      {entries.map((child, idx) =>
         child.type === 'dir' ? (
-          <div key={`d-${depth}-${child.name}`}>
+          <div key={`d-${depth}-${idx}-${child.name}`}>
             <div className="text-muted small">📁 {child.name}</div>
             <TreeView node={child} depth={depth + 1} />
           </div>
         ) : (
-          <div key={`f-${depth}-${child.name}`} className="small">
+          <div key={`f-${depth}-${idx}-${child.name}`} className="small">
             ▸ {child.name}
           </div>
         )
@@ -182,9 +190,7 @@ function CustomerOrderUploadFolder({ currentPath, userId, onFolderUploaded }) {
     try {
       abortRef.current?.abort();
       toast.info('⏹ Upload canceled.');
-    } catch {
-      // no-op
-    }
+    } catch {}
     setIsUploading(false);
     abortRef.current = null;
   };
@@ -455,9 +461,9 @@ function CustomerOrderUploadFolder({ currentPath, userId, onFolderUploaded }) {
                   <Form.Control
                     ref={inputRef}
                     type="file"
-                    // Presence of these attributes enables directory selection in supporting browsers.
-                    webkitdirectory=""
-                    directory=""
+                    /* ✅ Folder picker that sends the whole tree */
+                    webkitdirectory="true"
+                    directory="true"
                     multiple
                     onChange={handleFolderPicked}
                     disabled={isUploading}

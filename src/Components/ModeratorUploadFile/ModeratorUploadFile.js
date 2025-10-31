@@ -10,12 +10,24 @@ import 'react-toastify/dist/ReactToastify.css';
 import './ModeratorUploadFile.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
-const MOD_ROOT =
-  (process.env.REACT_APP_MODERATOR_START_PATH || '/moderator').replace(
-    /\/+$/,
-    ''
-  ) || '/moderator';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
+
+const RAW_MOD_ROOT = process.env.REACT_APP_MODERATOR_START_PATH || '/moderator';
+const MOD_ROOT = (function normRoot(r) {
+  const t =
+    '/' +
+    String(r || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '');
+  return t.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/moderator';
+})(RAW_MOD_ROOT);
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -28,9 +40,10 @@ const normalizePath = (p) =>
   ).replace(/\/{2,}/g, '/');
 
 const clampToModerator = (dest) => {
-  const root = normalizePath(MOD_ROOT);
-  const wanted = normalizePath(dest || root);
-  return wanted.startsWith(root) ? wanted : root;
+  const root = MOD_ROOT;
+  const wanted = normalizePath(dest || root).replace(/\/+$/, '');
+  if (wanted === root) return root;
+  return wanted.startsWith(root + '/') ? wanted : root;
 };
 
 const fmtBytes = (n) => {
@@ -54,7 +67,7 @@ const ModeratorUploadFile = ({ currentPath, userId, onFileUploaded }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
   const [bytesLoaded, setBytesLoaded] = useState(0);
-  const [expectedBytes, setExpectedBytes] = useState(0); // file.size
+  const [expectedBytes, setExpectedBytes] = useState(0);
 
   // cancel support
   const abortRef = useRef(null);
@@ -121,9 +134,9 @@ const ModeratorUploadFile = ({ currentPath, userId, onFileUploaded }) => {
         maxBodyLength: Infinity,
         timeout: 0,
         withCredentials: true,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
 
-      // Accept either { ok, uploaded: { to } } or { ok, to }
       const ok = res?.data?.ok;
       const savedTo = res?.data?.uploaded?.to || res?.data?.to;
       if (!ok || !savedTo) {
@@ -144,10 +157,13 @@ const ModeratorUploadFile = ({ currentPath, userId, onFileUploaded }) => {
       if (err?.name === 'CanceledError' || axios.isCancel?.(err)) {
         // canceled by user; toast already shown
       } else {
-        toast.error(`❌ Upload failed: ${err?.message || 'Unknown error'}`);
+        const msg =
+          err?.response?.data?.error ||
+          err?.message ||
+          'Upload failed. Please try again.';
+        toast.error(`❌ ${msg}`);
       }
     } finally {
-      // finish bar visually only if it wasn't canceled
       setProgressPct((p) =>
         abortRef.current == null && isUploading ? Math.max(p, 100) : p
       );

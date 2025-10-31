@@ -3,7 +3,10 @@
 
 import * as React from 'react';
 import './AdminControls.css';
-import { api } from '../Api/Api';
+// Robust import: supports default export, named { api }, or both.
+import ApiDefault, { api as apiNamed } from '../Api/Api';
+
+const api = apiNamed || ApiDefault;
 
 const ROLES = ['operator', 'moderator', 'admin'];
 
@@ -74,6 +77,25 @@ export default function AdminControls() {
   async function deleteByUid(uid) {
     return apiDelete(`/api/admin/users/${encodeURIComponent(uid)}`);
   }
+
+  const refreshList = React.useCallback(async () => {
+    try {
+      setListBusy(true);
+      const data = await listAllUsers();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setUsers(items);
+    } catch (err) {
+      const text =
+        err?.response?.data?.error || err?.message || 'Failed to load users';
+      flash(text, 'danger');
+    } finally {
+      setListBusy(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    refreshList();
+  }, [refreshList]);
 
   const save = async (e, opts = { reset: false }) => {
     e?.preventDefault?.();
@@ -155,25 +177,6 @@ export default function AdminControls() {
     }
   };
 
-  const refreshList = React.useCallback(async () => {
-    try {
-      setListBusy(true);
-      const data = await listAllUsers();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      setUsers(items);
-    } catch (err) {
-      const text =
-        err?.response?.data?.error || err?.message || 'Failed to load users';
-      flash(text, 'danger');
-    } finally {
-      setListBusy(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    refreshList();
-  }, [refreshList]);
-
   const filteredUsers = React.useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return users;
@@ -205,9 +208,9 @@ export default function AdminControls() {
         </div>
       )}
 
-      <section className="ac-card ac-card--accent ">
+      <section className="ac-card ac-card--accent">
         <form
-          className="ac-form ac-grid ac-grid--responsive "
+          className="ac-form ac-grid ac-grid--responsive"
           onSubmit={(e) => save(e, { reset: false })}
         >
           <div className="ac-field ac-field--full">
@@ -318,16 +321,16 @@ export default function AdminControls() {
                 </td>
               </tr>
             ) : (
-              filteredUsers.map((u) => (
+              filteredUsers.map((u, idx) => (
                 <tr
-                  key={u.id}
+                  key={u.id || u.email || idx}
                   className={
                     u.id && u.id === lastChangedUid
                       ? 'ac-row--highlight'
                       : undefined
                   }
                 >
-                  <td className="ac-mono ac-nowrap">{u.id}</td>
+                  <td className="ac-mono ac-nowrap">{u.id || '—'}</td>
                   <td className="ac-nowrap">
                     {u.email ? (
                       <a className="ac-link" href={`mailto:${u.email}`}>

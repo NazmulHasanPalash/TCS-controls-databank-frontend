@@ -10,11 +10,26 @@ import 'react-toastify/dist/ReactToastify.css';
 import './CustomerOrderUploadFile.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
-const CUSTOMER_ORDER_ROOT =
-  (
-    process.env.REACT_APP_CUSTOMER_ORDER_START_PATH || '/customer-order'
-  ).replace(/\/+$/, '') || '/customer-order';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
+
+// Root for customer-order
+const RAW_CO_ROOT =
+  process.env.REACT_APP_CUSTOMER_ORDER_START_PATH || '/customer-order';
+const CO_ROOT = (function normRoot(r) {
+  const t =
+    '/' +
+    String(r || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '');
+  return t.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/customer-order';
+})(RAW_CO_ROOT);
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -27,9 +42,10 @@ const normalizePath = (p) =>
   ).replace(/\/{2,}/g, '/');
 
 const clampToCustomerOrder = (dest) => {
-  const root = normalizePath(CUSTOMER_ORDER_ROOT);
-  const wanted = normalizePath(dest || root);
-  return wanted.startsWith(root) ? wanted : root;
+  const root = CO_ROOT;
+  const wanted = normalizePath(dest || root).replace(/\/+$/, '');
+  if (wanted === root) return root;
+  return wanted.startsWith(root + '/') ? wanted : root;
 };
 
 const fmtBytes = (n) => {
@@ -58,7 +74,7 @@ const CustomerOrderUploadFile = ({ currentPath, userId, onFileUploaded }) => {
   // cancel support
   const abortRef = useRef(null);
 
-  const destPath = clampToCustomerOrder(currentPath || CUSTOMER_ORDER_ROOT);
+  const destPath = clampToCustomerOrder(currentPath || CO_ROOT);
 
   const resetState = () => {
     setFile(null);
@@ -120,6 +136,7 @@ const CustomerOrderUploadFile = ({ currentPath, userId, onFileUploaded }) => {
         maxBodyLength: Infinity,
         timeout: 0,
         withCredentials: true,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
 
       // Accept either { ok, uploaded: { to } } or { ok, to }
@@ -143,7 +160,11 @@ const CustomerOrderUploadFile = ({ currentPath, userId, onFileUploaded }) => {
       if (err?.name === 'CanceledError' || axios.isCancel?.(err)) {
         // canceled by user; toast already shown
       } else {
-        toast.error(`❌ Upload failed: ${err?.message || 'Unknown error'}`);
+        const msg =
+          err?.response?.data?.error ||
+          err?.message ||
+          'Upload failed. Please try again.';
+        toast.error(`❌ ${msg}`);
       }
     } finally {
       // finish bar visually only if it wasn't canceled

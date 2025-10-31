@@ -1,5 +1,4 @@
-// src/Components/CustomerOrderCreateFolder/CustomerOrderCreateFolder.jsx
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Button, Form, Modal } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -8,11 +7,22 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './CustomerOrderCreateFolder.css';
 
-// Your API base + customer-order base on FTP
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
-const CUST_BASE = '/customer-order';
+/* ======================== Config ======================== */
+const RAW_API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+const CUST_BASE =
+  process.env.REACT_APP_CUSTOMER_ORDER_START_PATH || '/customer-order';
 
-/** Build the parent FTP path based on your folder object shape */
+/** Ensure API base has scheme and no trailing slash */
+function normalizeBaseUrl(url) {
+  let u = String(url || '').trim();
+  if (!/^https?:\/\//i.test(u)) u = `http://${u}`;
+  return u.replace(/\/+$/, '');
+}
+const API_BASE = normalizeBaseUrl(RAW_API_BASE);
+
+/* ======================== Helpers ======================== */
+
+/** Build the parent path based on your folder object shape */
 function resolveParentPath(currentFolder) {
   if (
     !currentFolder ||
@@ -30,7 +40,9 @@ function resolveParentPath(currentFolder) {
     currentFolder.data?.ftpPath ||
     currentFolder.data?.fullPath;
 
-  if (typeof fullPath === 'string' && fullPath.trim()) return fullPath.trim();
+  if (typeof fullPath === 'string' && fullPath.trim()) {
+    return fullPath.trim().replace(/\/{2,}/g, '/');
+  }
 
   // Fallback: build from breadcrumb data
   const crumbs = currentFolder?.data?.path ?? currentFolder?.path ?? [];
@@ -43,7 +55,7 @@ function resolveParentPath(currentFolder) {
   return parts.join('/').replace(/\/{2,}/g, '/');
 }
 
-/** Sanitize a folder name: remove slashes, collapse spaces, limit chars, disallow "."/".." */
+/** Sanitize a folder name: remove slashes, collapse spaces, disallow "."/".." */
 function sanitizeFolderName(raw) {
   const name = String(raw || '')
     .trim()
@@ -51,13 +63,16 @@ function sanitizeFolderName(raw) {
     .replace(/\s+/g, ' ') // collapse spaces
     .replace(/[^A-Za-z0-9 _.-]/g, ''); // keep common safe chars
   if (!name || name === '.' || name === '..') return '';
-  return name;
+  // avoid leading/trailing dots/spaces
+  return name.replace(/^[.\s]+|[.\s]+$/g, '');
 }
+
+/* ======================== Component ======================== */
 
 const CustomerOrderCreateFolder = ({
   currentFolder,
   onCustomerOrderCreateFolder,
-  siblings, // optional array of sibling folder names or objects with {name}
+  siblings,
   buttonVariant,
   buttonClassName,
   modalTitle,
@@ -65,6 +80,7 @@ const CustomerOrderCreateFolder = ({
   const [show, setShow] = useState(false);
   const [folderName, setFolderName] = useState('');
   const [loading, setLoading] = useState(false);
+  const abortRef = useRef(null);
 
   const parentPath = useMemo(
     () => resolveParentPath(currentFolder),
@@ -77,19 +93,36 @@ const CustomerOrderCreateFolder = ({
       siblings
         .map((s) => (typeof s === 'string' ? s : s?.name))
         .filter(Boolean)
-        .map((n) => String(n).toLowerCase())
+        .map((n) => String(n).trim().toLowerCase())
     );
   }, [siblings]);
+
+  useEffect(() => {
+    // cleanup pending request on unmount/close
+    return () => {
+      try {
+        abortRef.current?.abort();
+      } catch (_) {
+        /* noop */
+      }
+    };
+  }, []);
 
   const reset = () => {
     setFolderName('');
     setShow(false);
     setLoading(false);
+    try {
+      abortRef.current?.abort();
+    } catch (_) {
+      /* noop */
+    }
+    abortRef.current = null;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (loading) return; // guard double submit
+    if (loading) return;
 
     const clean = sanitizeFolderName(folderName);
     if (!clean) {
@@ -102,14 +135,17 @@ const CustomerOrderCreateFolder = ({
     }
 
     const controller = new AbortController();
+    abortRef.current = controller;
     const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
     try {
       setLoading(true);
+
       const res = await fetch(`${API_BASE}/api/folder/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // add credentials: 'include' if your server uses cookies/sessions
+        // Add credentials if your backend uses cookies/sessions:
+        // credentials: 'include',
         body: JSON.stringify({ parent: parentPath, name: clean }),
         signal: controller.signal,
       });
@@ -123,6 +159,7 @@ const CustomerOrderCreateFolder = ({
 
       toast.success(`✅ Folder "${clean}" created successfully!`);
 
+      // Notify parent
       onCustomerOrderCreateFolder?.({
         id: json.created,
         name: clean,
@@ -145,6 +182,7 @@ const CustomerOrderCreateFolder = ({
       setLoading(false);
     } finally {
       clearTimeout(timeoutId);
+      abortRef.current = null;
     }
   };
 
@@ -155,6 +193,7 @@ const CustomerOrderCreateFolder = ({
         onClick={() => setShow(true)}
         variant={buttonVariant}
         className={buttonClassName || 'd-flex align-items-center rounded-2'}
+        aria-label="Create folder"
       >
         <FontAwesomeIcon icon={faFolderPlus} />
         <span className="ms-2">Create Folder</span>
@@ -178,6 +217,8 @@ const CustomerOrderCreateFolder = ({
                 onChange={(e) => setFolderName(e.target.value)}
                 autoFocus
                 disabled={loading}
+                maxLength={255}
+                required
               />
             </Form.Group>
             <Button
@@ -192,8 +233,8 @@ const CustomerOrderCreateFolder = ({
         </Modal.Body>
       </Modal>
 
-      {/* Toasts */}
-      <ToastContainer position="top-right" autoClose={2000} />
+      {/* Toasts (remove if you have a global container) */}
+      <ToastContainer position="top-right" autoClose={2000} newestOnTop />
     </>
   );
 };

@@ -10,12 +10,25 @@ import 'react-toastify/dist/ReactToastify.css';
 import './SourcingAndPricingUploadFile.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
-const SNP_ROOT =
-  (process.env.REACT_APP_SNP_START_PATH || '/sourcing-pricing').replace(
-    /\/+$/,
-    ''
-  ) || '/sourcing-pricing';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
+
+const RAW_SNP_ROOT =
+  process.env.REACT_APP_SNP_START_PATH || '/sourcing-pricing';
+const SNP_ROOT = (function normRoot(r) {
+  const t =
+    '/' +
+    String(r || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '');
+  return t.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/sourcing-pricing';
+})(RAW_SNP_ROOT);
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -28,9 +41,10 @@ const normalizePath = (p) =>
   ).replace(/\/{2,}/g, '/');
 
 const clampToRoot = (dest) => {
-  const root = normalizePath(SNP_ROOT);
-  const wanted = normalizePath(dest || root);
-  return wanted.startsWith(root) ? wanted : root;
+  const root = SNP_ROOT;
+  const wanted = normalizePath(dest || root).replace(/\/+$/, '');
+  if (wanted === root) return root;
+  return wanted.startsWith(root + '/') ? wanted : root;
 };
 
 const fmtBytes = (n) => {
@@ -115,7 +129,6 @@ const SourcingAndPricingUploadFile = ({
 
     try {
       const res = await axios.post(`${API_BASE}/api/upload`, fd, {
-        // Let Axios set the multipart boundary automatically
         signal: controller.signal,
         onUploadProgress: (evt) => {
           const loaded = evt.loaded ?? 0;
@@ -125,15 +138,17 @@ const SourcingAndPricingUploadFile = ({
         },
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
-        timeout: 0,
+        timeout: 0, // large files
         withCredentials: true,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        validateStatus: () => true,
       });
 
       // Accept either { ok, uploaded: { to } } or { ok, to }
       const ok = res?.data?.ok;
       const savedTo = res?.data?.uploaded?.to || res?.data?.to;
       if (!ok || !savedTo) {
-        throw new Error(res?.data?.error || 'Upload failed');
+        throw new Error(res?.data?.error || res?.statusText || 'Upload failed');
       }
 
       onFileUploaded?.({
@@ -150,7 +165,11 @@ const SourcingAndPricingUploadFile = ({
       if (err?.name === 'CanceledError' || axios.isCancel?.(err)) {
         // canceled by user; toast already shown
       } else {
-        toast.error(`❌ Upload failed: ${err?.message || 'Unknown error'}`);
+        const msg =
+          err?.response?.data?.error ||
+          err?.message ||
+          'Upload failed. Please try again.';
+        toast.error(`❌ ${msg}`);
       }
     } finally {
       // visually finish bar only if not canceled
@@ -210,7 +229,10 @@ const SourcingAndPricingUploadFile = ({
                 </span>
               </div>
               <ProgressBar now={progressPct} label={`${progressPct}%`} />
-              <div className="d-flex justify-content-between small mt-1">
+              <div
+                className="d-flex justify-content-between small mt-1"
+                aria-live="polite"
+              >
                 <span>
                   Sent:&nbsp;<strong>{fmtBytes(bytesLoaded)}</strong>
                 </span>
@@ -242,6 +264,7 @@ const SourcingAndPricingUploadFile = ({
                   type="file"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                   disabled={isUploading}
+                  aria-label="Choose file to upload"
                 />
                 {file && (
                   <div className="small text-muted mt-1">
@@ -269,6 +292,7 @@ const SourcingAndPricingUploadFile = ({
         onClick={handleOpen}
         variant="outline-dark"
         className="d-flex align-items-center rounded-2"
+        aria-label="Open upload file dialog"
       >
         <FontAwesomeIcon icon={faFileUpload} />
         &nbsp; Upload File

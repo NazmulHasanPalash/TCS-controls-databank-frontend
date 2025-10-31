@@ -17,9 +17,17 @@ import 'react-toastify/dist/ReactToastify.css';
 import './AdministrativeUploadFolder.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
 /** Hard root: cannot upload above this path */
-const ADMIN_ROOT = process.env.REACT_APP_ADMIN_START_PATH || '/administrative';
+const ADMIN_ROOT_RAW =
+  process.env.REACT_APP_ADMIN_START_PATH || '/administrative';
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -29,10 +37,14 @@ const normalizePath = (p) =>
       .trim()
       .replace(/\\/g, '/')
       .replace(/^\/+/, '')
-  ).replace(/\/{2,}/g, '/');
+  )
+    .replace(/\/{2,}/g, '/')
+    .replace(/\/+$/, '') || '/administrative';
+
+const ADMIN_ROOT = normalizePath(ADMIN_ROOT_RAW);
 
 const clampToAdministrative = (dest) => {
-  const root = normalizePath(ADMIN_ROOT);
+  const root = ADMIN_ROOT;
   const wanted = normalizePath(dest || root);
   if (wanted === root) return root;
   return wanted.startsWith(root + '/') ? wanted : root;
@@ -74,7 +86,7 @@ function buildTree(relativePaths) {
 }
 
 function TreeView({ node, depth = 0 }) {
-  const entries = node.children ? Array.from(node.children.values()) : [];
+  const entries = node?.children ? Array.from(node.children.values()) : [];
   entries.sort((a, b) => {
     if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
     return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -197,6 +209,7 @@ function AdministrativeUploadFolder({ currentPath, userId, onFolderUploaded }) {
 
     const fd = new FormData();
     fd.append('dest', destBase);
+    if (userId != null) fd.append('userId', String(userId));
 
     const files = Array.from(fileList);
     const relPaths = files.map((f) =>
@@ -232,6 +245,8 @@ function AdministrativeUploadFolder({ currentPath, userId, onFolderUploaded }) {
         maxBodyLength: Infinity,
         timeout: 0,
         withCredentials: true,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        validateStatus: () => true,
       });
 
       if (!res?.data?.ok) throw new Error(res?.data?.error || 'Upload failed');
@@ -445,7 +460,10 @@ function AdministrativeUploadFolder({ currentPath, userId, onFolderUploaded }) {
                 </div>
 
                 {/* Folder selection */}
-                <Form.Group controlId="formFolder" className="my-2">
+                <Form.Group
+                  controlId="formAdministrativeFolder"
+                  className="my-2"
+                >
                   <Form.Label className="fw-semibold">
                     Choose a folder
                   </Form.Label>
@@ -493,8 +511,10 @@ function AdministrativeUploadFolder({ currentPath, userId, onFolderUploaded }) {
 }
 
 AdministrativeUploadFolder.propTypes = {
+  /** The folder you’re currently viewing (e.g. "/administrative", "/administrative/sub/dir") */
   currentPath: PropTypes.string,
   userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  /** Called after a successful upload so parent can refresh the listing */
   onFolderUploaded: PropTypes.func,
 };
 

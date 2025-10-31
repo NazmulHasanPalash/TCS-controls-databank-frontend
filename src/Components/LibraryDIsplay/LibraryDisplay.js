@@ -19,9 +19,15 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFile } from '@fortawesome/free-solid-svg-icons';
 
 /* ================= Config ================= */
-const API_BASE = (
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
   process.env.REACT_APP_API_BASE || 'http://localhost:5000'
-).replace(/\/+$/, '');
+);
+
 const START_PATH =
   (process.env.REACT_APP_START_PATH || '/library').replace(/\/+$/, '') ||
   '/library';
@@ -94,6 +100,7 @@ const triggerDownload = (url, filename) => {
   a.href = url;
   if (filename) a.setAttribute('download', filename);
   a.target = '_blank';
+  a.rel = 'noopener noreferrer';
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -272,10 +279,10 @@ function LibraryDisplay() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const { data } = await axios.get(
-        `${API_BASE}/api/list?path=${encodeURIComponent(path)}`,
-        { signal: controller.signal }
-      );
+      const { data } = await axios.get(`${API_BASE}/api/list`, {
+        params: { path },
+        signal: controller.signal,
+      });
       if (!data?.ok) throw new Error(data?.error || 'Failed to fetch.');
       const normalized = (data.items || []).map((it) => ({
         name: it.name,
@@ -534,48 +541,6 @@ function LibraryDisplay() {
       alert(`Delete failed: ${err?.message || 'Unknown error'}`);
     } finally {
       setConfirmSubmitting(false);
-      setWorking(false);
-    }
-  };
-
-  /* ===== Rename ===== */
-  const openRename = (item) => {
-    setRenameValue(item?.name || '');
-    setRenameOpen(true);
-    setCtxOpen(false);
-    setCtxTarget(item);
-  };
-
-  const submitRename = async () => {
-    const item = ctxTarget;
-    const newName = (renameValue || '').trim();
-    if (!item || !newName || newName === item.name) {
-      setRenameOpen(false);
-      return;
-    }
-    setWorking(true);
-    try {
-      const from = joinPosix(path, item.name);
-      if (item.isDirectory) {
-        const to = joinPosix(path, newName);
-        const { data } = await axios.put(`${API_BASE}/api/folder`, {
-          from,
-          to,
-        });
-        if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
-      } else {
-        const { data } = await axios.post(`${API_BASE}/api/file/rename`, {
-          from,
-          newName,
-        });
-        if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
-      }
-      setRenameOpen(false);
-      setCtxTarget(null);
-      fetchList();
-    } catch (err) {
-      alert(`Rename failed: ${err?.message || 'Unknown error'}`);
-    } finally {
       setWorking(false);
     }
   };

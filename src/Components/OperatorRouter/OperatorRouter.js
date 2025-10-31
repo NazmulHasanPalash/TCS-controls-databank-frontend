@@ -1,10 +1,11 @@
 // src/routers/OperatorRouter.js
 import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
-import useAuthRole from '../Hooks/useAuthRole'; // <-- use the role hook
+import useAuthRole from '../Hooks/useAuthRole'; // ✅ use the role hook (operator OR above)
 
 const OperatorRouter = ({ children, ...rest }) => {
-  const { user, isLoading, isOperator } = useAuthRole();
+  const { user, isLoading, isOperatorPlus } = useAuthRole();
+  // isOperatorPlus === operator OR moderator OR admin
 
   if (isLoading) {
     return (
@@ -14,25 +15,19 @@ const OperatorRouter = ({ children, ...rest }) => {
     );
   }
 
-  const noAccess = !!user && !isOperator;
+  const isSignedIn = !!user?.email;
+  const canAccess = isSignedIn && isOperatorPlus; // ✅ allow moderator/admin too
 
   return (
     <Route
       {...rest}
       render={({ location }) =>
-        user?.email && isOperator ? (
+        canAccess ? (
           children
-        ) : user?.email && noAccess ? (
-          <Redirect
-            to={{
-              pathname: '/403', // or '/', if you prefer
-              state: { from: location },
-            }}
-          />
         ) : (
           <Redirect
             to={{
-              pathname: '/login',
+              pathname: '/',
               state: { from: location },
             }}
           />

@@ -1,11 +1,12 @@
 // src/routers/ModeratorRouter.js
 import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
-import useAuthRole from '../Hooks/useAuthRole'; // make sure this path/casing matches your project
+import useAuthRole from '../Hooks/useAuthRole'; // ✅ ensure this path/casing matches your project
 
 const ModeratorRouter = ({ children, ...rest }) => {
-  // use the correct hook you imported
-  const { user, isLoading, isModerator } = useAuthRole();
+  // Allow moderators *and* admins
+  const { user, isLoading, isModeratorPlus } = useAuthRole();
+  // isModeratorPlus === moderator OR admin
 
   if (isLoading) {
     return (
@@ -15,25 +16,19 @@ const ModeratorRouter = ({ children, ...rest }) => {
     );
   }
 
-  const noAccess = !!user && !isModerator;
+  const isSignedIn = !!user?.email;
+  const canAccess = isSignedIn && isModeratorPlus;
 
   return (
     <Route
       {...rest}
       render={({ location }) =>
-        user?.email && isModerator ? (
+        canAccess ? (
           children
-        ) : user?.email && noAccess ? (
-          <Redirect
-            to={{
-              pathname: '/403',
-              state: { from: location },
-            }}
-          />
         ) : (
           <Redirect
             to={{
-              pathname: '/login',
+              pathname: '/',
               state: { from: location },
             }}
           />

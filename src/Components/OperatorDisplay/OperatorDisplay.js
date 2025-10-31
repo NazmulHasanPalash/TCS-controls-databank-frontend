@@ -11,6 +11,8 @@ import axios from 'axios';
 import './OperatorDisplay.css';
 
 import BredCrum from '../BreadCrum/BreadCrum';
+
+// ⬇️ Use Operator* components
 import OperatorUploadFolder from '../OperatorUploadFolder/OperatorUploadFolder';
 import OperatorCreateFolder from '../OperatorCreateFolder/OperatorCreateFolder';
 import OperatorUploadFile from '../OperatorUploadFile/OperatorUploadFile';
@@ -19,14 +21,18 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFile } from '@fortawesome/free-solid-svg-icons';
 
 /* ================= Config ================= */
-const API_BASE = (
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
   process.env.REACT_APP_API_BASE || 'http://localhost:5000'
-).replace(/\/+$/, '');
+);
+
 const START_PATH =
-  (process.env.REACT_APP_OPERATOR_START_PATH || '/operator').replace(
-    /\/+$/,
-    ''
-  ) || '/operator';
+  (process.env.REACT_APP_START_PATH || '/operator').replace(/\/+$/, '') ||
+  '/operator';
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -63,12 +69,15 @@ const fmtDate = (d) => {
   }
 };
 
+/* ---- file type helpers ---- */
 const isImg = (n) => /\.(png|jpe?g|gif|webp|svg)$/i.test(n);
+const isHtml = (n) => /\.html?$/i.test(n);
 const isTxt = (n) =>
-  /\.(txt|json|xml|csv|md|html?|css|js|ts|tsx|jsx|yml|yaml|log)$/i.test(n);
+  /\.(txt|json|xml|csv|md|css|js|ts|tsx|jsx|yml|yaml|log)$/i.test(n);
 const isPdf = (n) => /\.pdf$/i.test(n);
 const isAud = (n) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(n);
 const isVid = (n) => /\.(mp4|webm|ogv|mov|mkv)$/i.test(n);
+const isOffice = (n) => /\.(docx?|xlsx?|pptx?)$/i.test(n); // download instead
 
 const sortItems = (items) =>
   [...items].sort((a, b) => {
@@ -93,6 +102,7 @@ const triggerDownload = (url, filename) => {
   a.href = url;
   if (filename) a.setAttribute('download', filename);
   a.target = '_blank';
+  a.rel = 'noopener noreferrer';
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -113,14 +123,27 @@ const collapseSelection = (paths) => {
 
 /* =============== Small Modal =============== */
 function Modal({ title, children, onClose, showClose = true }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       role="dialog"
       aria-modal="true"
+      aria-label={title}
       className="libd-modal-overlay"
       onMouseDown={onClose}
     >
-      <div className="libd-modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className="libd-modal"
+        onMouseDown={(e) => e.stopPropagation()}
+        role="document"
+      >
         <div className="libd-modal-header">
           <div className="libd-modal-title">{title}</div>
           {showClose && (
@@ -231,10 +254,14 @@ function OperatorDisplay() {
   // Preview modal
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState({
-    type: 'text',
+    type: 'text', // image | pdf | audio | video | text | iframe
     url: '',
     text: '',
+    name: '',
   });
+
+  // Blob URL tracking
+  const objectUrlRef = useRef('');
 
   // Rename modal
   const [renameOpen, setRenameOpen] = useState(false);
@@ -254,10 +281,10 @@ function OperatorDisplay() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const { data } = await axios.get(
-        `${API_BASE}/api/list?path=${encodeURIComponent(path)}`,
-        { signal: controller.signal }
-      );
+      const { data } = await axios.get(`${API_BASE}/api/list`, {
+        params: { path },
+        signal: controller.signal,
+      });
       if (!data?.ok) throw new Error(data?.error || 'Failed to fetch.');
       const normalized = (data.items || []).map((it) => ({
         name: it.name,
@@ -277,6 +304,7 @@ function OperatorDisplay() {
     } finally {
       setLoading(false);
     }
+    return () => controller.abort();
   }, [path]);
 
   useEffect(() => {
@@ -495,25 +523,15 @@ function OperatorDisplay() {
           return next;
         });
       } else {
-        const payload = confirmItems.map((it) => ({
-          path: it.fullPath,
-          type: it.isDirectory ? 'folder' : 'file',
-        }));
-        const res = await axios.post(
-          `${API_BASE}/api/delete-multi`,
-          { items: payload },
-          { validateStatus: () => true }
-        );
-        if (res.status === 200 && res.data?.ok) {
-          const failed = (res.data.results || []).filter((r) => !r.ok);
-          if (failed.length) {
-            alert(
-              `Some items couldn’t be deleted:\n• ` +
-                failed.map((f) => f.path).join('\n• ')
-            );
+        for (const it of confirmItems) {
+          const res = await axios.post(
+            `${API_BASE}/api/delete`,
+            { path: it.fullPath },
+            { validateStatus: () => true }
+          );
+          if (!(res.status === 200 && res.data?.ok)) {
+            throw new Error(res.data?.error || `Delete failed: ${it.name}`);
           }
-        } else {
-          throw new Error(res.data?.error || 'Delete failed.');
         }
         clearSelection();
       }
@@ -529,101 +547,101 @@ function OperatorDisplay() {
     }
   };
 
-  /* ===== Rename ===== */
-  const openRename = (item) => {
-    setRenameValue(item?.name || '');
-    setRenameOpen(true);
-    setCtxOpen(false);
-    setCtxTarget(item);
+  /* ===== Preview helpers (blob/object URL) ===== */
+  const revokeObjectUrl = () => {
+    if (objectUrlRef.current) {
+      try {
+        URL.revokeObjectURL(objectUrlRef.current);
+      } catch {}
+      objectUrlRef.current = '';
+    }
   };
 
-  const submitRename = async () => {
-    const item = ctxTarget;
-    const newName = (renameValue || '').trim();
-    if (!item || !newName || newName === item.name) {
-      setRenameOpen(false);
-      return;
+  const fetchBlobUrl = async (filePath) => {
+    const res = await axios.get(`${API_BASE}/api/download`, {
+      params: { path: filePath },
+      responseType: 'blob',
+      validateStatus: () => true,
+    });
+
+    if (!(res.status >= 200 && res.status < 300)) {
+      throw new Error(`Preview request failed (${res.status})`);
     }
-    setWorking(true);
-    try {
-      const from = joinPosix(path, item.name);
-      if (item.isDirectory) {
-        const to = joinPosix(path, newName);
-        const { data } = await axios.put(`${API_BASE}/api/folder`, {
-          from,
-          to,
-        });
-        if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
-      } else {
-        const { data } = await axios.post(`${API_BASE}/api/file/rename`, {
-          from,
-          newName,
-        });
-        if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
-      }
-      setRenameOpen(false);
-      setCtxTarget(null);
-      fetchList();
-    } catch (err) {
-      alert(`Rename failed: ${err?.message || 'Unknown error'}`);
-    } finally {
-      setWorking(false);
-    }
+
+    const ct = res.headers?.['content-type'] || 'application/octet-stream';
+    const blob = new Blob([res.data], { type: ct });
+    return URL.createObjectURL(blob);
   };
 
   /* ===== Preview ===== */
   const handlePreview = async (item) => {
     if (item.isDirectory) return;
     const filePath = joinPosix(path, item.name);
+
+    revokeObjectUrl();
+
     try {
       if (isImg(item.name)) {
-        setPreviewData({
-          type: 'image',
-          url: `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`,
-          text: '',
-        });
+        const url = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({ type: 'image', url, text: '', name: item.name });
         setPreviewOpen(true);
       } else if (isPdf(item.name)) {
-        setPreviewData({
-          type: 'pdf',
-          url: `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`,
-          text: '',
-        });
+        const url = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({ type: 'pdf', url, text: '', name: item.name });
         setPreviewOpen(true);
       } else if (isAud(item.name)) {
-        setPreviewData({
-          type: 'audio',
-          url: `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`,
-          text: '',
-        });
+        const url = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({ type: 'audio', url, text: '', name: item.name });
         setPreviewOpen(true);
       } else if (isVid(item.name)) {
-        setPreviewData({
-          type: 'video',
-          url: `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`,
-          text: '',
-        });
+        const url = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({ type: 'video', url, text: '', name: item.name });
+        setPreviewOpen(true);
+      } else if (isHtml(item.name)) {
+        const url = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({ type: 'iframe', url, text: '', name: item.name });
         setPreviewOpen(true);
       } else if (isTxt(item.name)) {
         const { data } = await axios.get(`${API_BASE}/api/file/content`, {
           params: { path: filePath, encoding: 'utf8' },
+          validateStatus: () => true,
         });
         if (!data?.ok) throw new Error(data?.error || 'Preview failed.');
         setPreviewData({
           type: 'text',
           url: '',
           text: String(data.content || ''),
+          name: item.name,
         });
         setPreviewOpen(true);
-      } else {
+      } else if (isOffice(item.name)) {
         handleDownload(item);
+      } else {
+        const rawUrl = `${API_BASE}/api/download?path=${encodeURIComponent(
+          filePath
+        )}`;
+        window.open(rawUrl, '_blank', 'noopener,noreferrer');
       }
     } catch (err) {
+      revokeObjectUrl();
       alert(`Preview failed: ${err?.message || 'Unknown error'}`);
     } finally {
       setCtxOpen(false);
     }
   };
+
+  useEffect(() => {
+    if (!previewOpen) {
+      revokeObjectUrl();
+      setPreviewData((p) => ({ ...p, url: '' }));
+    }
+    return () => revokeObjectUrl();
+  }, [previewOpen]);
 
   /* ===== Folder upload success hook ===== */
   const handleFolderUploaded = useCallback(() => {
@@ -669,21 +687,62 @@ function OperatorDisplay() {
     });
   }, [visibleItems, path]);
 
+  /* ===== Rename (same as previous) ===== */
+  const openRename = (item) => {
+    setCtxOpen(false);
+    if (!item) return;
+    setCtxTarget(item);
+    setRenameValue(item.name);
+    setRenameOpen(true);
+  };
+
+  const submitRename = async () => {
+    if (!ctxTarget) return;
+    const oldName = ctxTarget.name;
+    const newName = String(renameValue || '').trim();
+
+    if (!newName) {
+      alert('Name cannot be empty.');
+      return;
+    }
+    if (newName === oldName) {
+      setRenameOpen(false);
+      return;
+    }
+    if (/[\\]/.test(newName)) {
+      alert('Backslashes are not allowed in names.');
+      return;
+    }
+
+    const fromPath = joinPosix(path, oldName);
+    const toPath = joinPosix(path, newName);
+
+    try {
+      const res = await axios.post(
+        `${API_BASE}/api/rename`,
+        { from: fromPath, to: toPath },
+        { validateStatus: () => true }
+      );
+      if (!(res.status === 200 && res.data?.ok)) {
+        throw new Error(res.data?.error || 'Rename failed.');
+      }
+      setRenameOpen(false);
+      setCtxTarget(null);
+      await fetchList();
+      setSuccessMsg('Renamed successfully');
+      setTimeout(() => setSuccessMsg(''), 2000);
+    } catch (err) {
+      alert(`Rename failed: ${err?.message || 'Unknown error'}`);
+    }
+  };
+
   /* ================= Render ================= */
   return (
     <div className="libd-root">
       {/* Toolbar wrapper */}
-      <div className="libd-toolbar" style={{ display: 'block', width: '100%' }}>
+      <div className="libd-toolbar">
         {/* Row 1: Breadcrumb path */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 10,
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="libd-toolbar-row">
           <BredCrum
             className="libd-breadcrumb"
             path={path}
@@ -696,18 +755,10 @@ function OperatorDisplay() {
           />
         </div>
 
-        {/* Row 2: Buttons (left) + Search (right) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            marginBottom: 12,
-          }}
-        >
-          <div className="libd-actions" style={{ marginLeft: 0 }}>
+        {/* Row 2: Buttons + Search */}
+        <div className="libd-toolbar-row libd-toolbar-actions">
+          <div className="libd-actions">
+            {/* ⬇️ Operator* components */}
             <OperatorUploadFile currentPath={path} onFileUploaded={fetchList} />
             <OperatorUploadFolder
               currentPath={path}
@@ -718,7 +769,9 @@ function OperatorDisplay() {
                 fullPath: path,
                 name: path.split('/').filter(Boolean).pop() || 'operator',
               }}
+              // Support either prop name, depending on your component:
               onOperatorCreateFolder={fetchList}
+              onLibraryCreateFolder={fetchList}
               buttonVariant="outline-dark"
             />
             <button onClick={goUp} title="Up" className="libd-pill">
@@ -740,7 +793,7 @@ function OperatorDisplay() {
           <input
             ref={searchInputRef}
             type="text"
-            className="libd-input"
+            className="libd-input libd-input-search"
             placeholder="Search in this folder…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -748,7 +801,6 @@ function OperatorDisplay() {
               if (e.key === 'Escape') setSearchTerm('');
             }}
             aria-label="Search files and folders in this folder"
-            style={{ width: 'min(420px, 90vw)' }}
           />
         </div>
       </div>
@@ -764,9 +816,9 @@ function OperatorDisplay() {
       )}
       {loading && <div className="libd-alert libd-alert-info">Loading…</div>}
 
-      {/* Table */}
+      {/* ================== Scrollable table ================== */}
       <div className="libd-table">
-        {/* Sticky header */}
+        {/* Header row */}
         <div className="libd-thead">
           <input
             type="checkbox"
@@ -786,7 +838,7 @@ function OperatorDisplay() {
           <div className="libd-right libd-col-mod">Last modified</div>
         </div>
 
-        {/* Vertically scrollable body */}
+        {/* Body with its own vertical scrollbar */}
         <div className="libd-tbody-scroll">
           {visibleItems.length === 0 && !loading ? (
             <div className="libd-empty" role="status">
@@ -820,24 +872,30 @@ function OperatorDisplay() {
                     }}
                     onClick={(e) => e.stopPropagation()}
                   />
+
+                  {/* Name */}
                   <div className="libd-name" title={item.name}>
                     <FontAwesomeIcon
                       icon={item.isDirectory ? faFolder : faFile}
                       className={`libd-fa ${
                         item.isDirectory ? 'libd-folder' : 'libd-file'
                       }`}
-                      style={
-                        item.isDirectory ? { color: '#f4c20d' } : undefined
-                      }
                     />
                     {renderHighlightedName(item.name)}
                   </div>
-                  <div className="libd-right libd-muted">
+
+                  {/* Size */}
+                  <div className="libd-right libd-muted" data-label="Size">
                     {typeof sizeToShow === 'number'
                       ? fmtBytes(sizeToShow)
                       : '—'}
                   </div>
-                  <div className="libd-right libd-muted libd-col-mod">
+
+                  {/* Last modified */}
+                  <div
+                    className="libd-right libd-muted libd-col-mod"
+                    data-label="Last modified"
+                  >
                     {fmtDate(item.modifiedAt)}
                   </div>
                 </div>
@@ -908,7 +966,10 @@ function OperatorDisplay() {
 
       {/* Preview Modal */}
       {previewOpen && (
-        <Modal onClose={() => setPreviewOpen(false)} title="Preview">
+        <Modal
+          onClose={() => setPreviewOpen(false)}
+          title={previewData.name ? `Preview — ${previewData.name}` : 'Preview'}
+        >
           {previewData.type === 'image' && (
             <img
               src={previewData.url}
@@ -916,6 +977,7 @@ function OperatorDisplay() {
               className="libd-preview-media"
             />
           )}
+
           {previewData.type === 'pdf' && (
             <iframe
               title="pdf"
@@ -923,21 +985,34 @@ function OperatorDisplay() {
               className="libd-preview-pdf"
             />
           )}
+
           {previewData.type === 'audio' && (
             <audio controls className="libd-preview-audio">
               <source src={previewData.url} />
               Your browser does not support the audio element.
             </audio>
           )}
+
           {previewData.type === 'video' && (
             <video controls className="libd-preview-media">
               <source src={previewData.url} />
               Your browser does not support the video element.
             </video>
           )}
+
+          {previewData.type === 'iframe' && (
+            <iframe
+              title="html"
+              src={previewData.url}
+              className="libd-preview-pdf"
+              sandbox="allow-same-origin allow-forms allow-scripts"
+            />
+          )}
+
           {previewData.type === 'text' && (
             <pre className="libd-preview-text">{previewData.text}</pre>
           )}
+
           <div className="libd-modal-actions">
             <button
               onClick={() => setPreviewOpen(false)}

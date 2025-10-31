@@ -19,9 +19,15 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFile } from '@fortawesome/free-solid-svg-icons';
 
 /* ================= Config ================= */
-const API_BASE = (
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
   process.env.REACT_APP_API_BASE || 'http://localhost:5000'
-).replace(/\/+$/, '');
+);
+
 const START_PATH =
   (process.env.REACT_APP_SNP_START_PATH || '/sourcing-pricing').replace(
     /\/+$/,
@@ -121,14 +127,27 @@ const collapseSelection = (paths) => {
 
 /* =============== Small Modal =============== */
 function Modal({ title, children, onClose, showClose = true }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       role="dialog"
       aria-modal="true"
+      aria-label={title}
       className="libd-modal-overlay"
       onMouseDown={onClose}
     >
-      <div className="libd-modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className="libd-modal"
+        onMouseDown={(e) => e.stopPropagation()}
+        role="document"
+      >
         <div className="libd-modal-header">
           <div className="libd-modal-title">{title}</div>
           {showClose && (
@@ -580,42 +599,28 @@ function SourcingAndPricingDisplay({ defaultView }) {
   const handlePreview = async (item) => {
     if (item.isDirectory) return;
     const filePath = joinPosix(path, item.name);
+    const url = `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
+
     if (isImg(item.name)) {
-      setPreviewData({
-        type: 'image',
-        url: `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`,
-        text: '',
-      });
+      setPreviewData({ type: 'image', url, text: '' });
       setPreviewOpen(true);
       setCtxOpen(false);
       return;
     }
     if (isPdf(item.name)) {
-      setPreviewData({
-        type: 'pdf',
-        url: `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`,
-        text: '',
-      });
+      setPreviewData({ type: 'pdf', url, text: '' });
       setPreviewOpen(true);
       setCtxOpen(false);
       return;
     }
     if (isAud(item.name)) {
-      setPreviewData({
-        type: 'audio',
-        url: `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`,
-        text: '',
-      });
+      setPreviewData({ type: 'audio', url, text: '' });
       setPreviewOpen(true);
       setCtxOpen(false);
       return;
     }
     if (isVid(item.name)) {
-      setPreviewData({
-        type: 'video',
-        url: `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`,
-        text: '',
-      });
+      setPreviewData({ type: 'video', url, text: '' });
       setPreviewOpen(true);
       setCtxOpen(false);
       return;
@@ -637,6 +642,8 @@ function SourcingAndPricingDisplay({ defaultView }) {
       setCtxOpen(false);
       return;
     }
+
+    // Fallback: download
     handleDownload(item);
     setCtxOpen(false);
   };
@@ -710,15 +717,15 @@ function SourcingAndPricingDisplay({ defaultView }) {
           />
         </div>
 
-        {/* Row 2: Buttons (left) + Search (right) */}
+        {/* Row 2: ALL BUTTONS RIGHT */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end', // ⬅️ buttons right
             flexWrap: 'wrap',
-            marginBottom: 12,
+            marginBottom: 8,
           }}
         >
           <div className="libd-actions" style={{ marginLeft: 0 }}>
@@ -750,7 +757,17 @@ function SourcingAndPricingDisplay({ defaultView }) {
               🗑 Delete Selected ({selected.size})
             </button>
           </div>
+        </div>
 
+        {/* Row 3: Search input (left-aligned) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            marginBottom: 12,
+          }}
+        >
           <input
             ref={searchInputRef}
             type="text"

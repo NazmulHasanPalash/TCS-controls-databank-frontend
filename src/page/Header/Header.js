@@ -3,20 +3,19 @@ import React from 'react';
 import './Header.css';
 import { HashLink } from 'react-router-hash-link';
 
-// 👉 roles (user, isLoading, isAdmin, isModerator, isOperator, …)
-import useAuthRole from '../../Components/Hooks/useAuthRole'; // adjust path if yours differs
+// ✅ Correct hook paths (lowercase "hooks")
+import useAuthRole from '../../Components/Hooks/useAuthRole'; // role & user state
+import useFirebase from '../../Components/Hooks/useFirebase'; // logout helper (rename of your old useAuth)
 
-// 👉 optional: whatever hook you already use for logout
-import useAuth from '../../Components/Hooks/useAuth'; // adjust/remove if your project differs
-
+// Visible to Admin: Admin can see *Admin*, *Moderator*, *Operator*, and *Users* sections
 const Header = () => {
   // Role & user state
   const { user, isLoading, isAdmin, isModerator, isOperator } = useAuthRole();
 
-  // Logout (support your existing hook if available)
-  const { logOut, signOut } = (function safeUseAuth() {
+  // Logout from your Firebase hook
+  const { logOut } = (function safeUseFirebase() {
     try {
-      return useAuth?.() || {};
+      return useFirebase?.() || {};
     } catch {
       return {};
     }
@@ -26,24 +25,22 @@ const Header = () => {
     try {
       if (typeof logOut === 'function') {
         await logOut();
-      } else if (typeof signOut === 'function') {
-        await signOut();
       } else {
-        // No hook? Try Firebase global if you have it available
-        // await auth.signOut();
+        // Fallback: hash redirect (works with HashRouter)
+        window.location.hash = '#/login';
       }
-      // Optional: send the user to login after logout (HashRouter style)
-      window.location.hash = '#/login';
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('Logout failed:', e);
+      window.location.hash = '#/login';
     }
   };
 
-  // Visibility flags per your rules
+  // Visibility flags
   const canSeeAdminLink = !!isAdmin;
-  const canSeeModeratorLink = isModerator || isAdmin; // admin can also see moderator section
-  const canSeeOperatorLink = isOperator || isModerator || isAdmin; // everyone who is signed in in your schema
+  const canSeeModeratorLink = isModerator || isAdmin; // admin inherits
+  const canSeeOperatorLink = isOperator || isModerator || isAdmin; // any signed-in role
+  const canSeeUsersLink = !!isAdmin; // 🔹 explicit Users link for admins
 
   return (
     <div className="w-100 mx-auto margin-header">
@@ -73,7 +70,7 @@ const Header = () => {
             </HashLink>
 
             <ul className="navbar-nav mx-auto mb-2 mb-lg-0 link-style d-flex align-items-center">
-              {/* While auth is loading, avoid flicker */}
+              {/* Avoid flicker while auth is loading */}
               {isLoading ? null : user?.email ? (
                 <>
                   <li className="nav-item">
@@ -85,7 +82,7 @@ const Header = () => {
                     </HashLink>
                   </li>
 
-                  {/* Normal user file sections (always visible to signed-in users) */}
+                  {/* File Manager (always for signed-in users) */}
                   <li className="nav-item dropdown">
                     <button
                       className="btn header-text-style dropdown-toggle active"
@@ -174,15 +171,18 @@ const Header = () => {
                     </li>
                   )}
 
+                  {/* Admin block — Admin can also check Moderator, Operator and Users */}
                   {canSeeAdminLink && (
-                    <li className="nav-item">
-                      <HashLink
-                        className="nav-link active header-text-style"
-                        to="/admin"
-                      >
-                        Admin
-                      </HashLink>
-                    </li>
+                    <>
+                      <li className="nav-item">
+                        <HashLink
+                          className="nav-link active header-text-style"
+                          to="/admin"
+                        >
+                          Admin
+                        </HashLink>
+                      </li>
+                    </>
                   )}
 
                   {/* Logout */}

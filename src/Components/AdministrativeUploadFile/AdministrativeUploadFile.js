@@ -10,12 +10,16 @@ import 'react-toastify/dist/ReactToastify.css';
 import './AdministrativeUploadFile.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
-const ADMIN_ROOT =
-  (process.env.REACT_APP_ADMIN_START_PATH || '/administrative').replace(
-    /\/+$/,
-    ''
-  ) || '/administrative';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
+const ADMIN_ROOT_RAW =
+  process.env.REACT_APP_ADMIN_START_PATH || '/administrative';
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -25,12 +29,17 @@ const normalizePath = (p) =>
       .trim()
       .replace(/\\/g, '/')
       .replace(/^\/+/, '')
-  ).replace(/\/{2,}/g, '/');
+  )
+    .replace(/\/{2,}/g, '/')
+    .replace(/\/+$/, '') || '/administrative';
+
+const ADMIN_ROOT = normalizePath(ADMIN_ROOT_RAW);
 
 const clampToAdministrative = (dest) => {
-  const root = normalizePath(ADMIN_ROOT);
+  const root = ADMIN_ROOT;
   const wanted = normalizePath(dest || root);
-  return wanted.startsWith(root) ? wanted : root;
+  if (wanted === root) return root;
+  return wanted.startsWith(root + '/') ? wanted : root;
 };
 
 const fmtBytes = (n) => {
@@ -121,6 +130,8 @@ const AdministrativeUploadFile = ({ currentPath, userId, onFileUploaded }) => {
         maxBodyLength: Infinity,
         timeout: 0,
         withCredentials: true,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        validateStatus: () => true,
       });
 
       // Accept either { ok, uploaded: { to } } or { ok, to }
@@ -144,7 +155,11 @@ const AdministrativeUploadFile = ({ currentPath, userId, onFileUploaded }) => {
       if (err?.name === 'CanceledError' || axios.isCancel?.(err)) {
         // canceled by user; toast already shown
       } else {
-        toast.error(`❌ Upload failed: ${err?.message || 'Unknown error'}`);
+        const msg =
+          err?.response?.data?.error ||
+          err?.message ||
+          'Upload failed. Please try again.';
+        toast.error(`❌ ${msg}`);
       }
     } finally {
       // finish bar visually only if it wasn't canceled
@@ -239,7 +254,7 @@ const AdministrativeUploadFile = ({ currentPath, userId, onFileUploaded }) => {
               <div className="small text-muted mb-2">
                 Destination:&nbsp;<code>{destPath}</code>
               </div>
-              <Form.Group controlId="formFile" className="my-2">
+              <Form.Group controlId="formAdministrativeFile" className="my-2">
                 <Form.Control
                   type="file"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}

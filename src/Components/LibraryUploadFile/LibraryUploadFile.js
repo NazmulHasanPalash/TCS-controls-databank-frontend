@@ -10,10 +10,24 @@ import 'react-toastify/dist/ReactToastify.css';
 import './LibraryUploadFile.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
-const LIB_ROOT =
-  (process.env.REACT_APP_START_PATH || '/library').replace(/\/+$/, '') ||
-  '/library';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
+
+const RAW_LIB_ROOT = process.env.REACT_APP_START_PATH || '/library';
+const LIB_ROOT = (function normRoot(r) {
+  const t =
+    '/' +
+    String(r || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '');
+  return t.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/library';
+})(RAW_LIB_ROOT);
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -26,9 +40,10 @@ const normalizePath = (p) =>
   ).replace(/\/{2,}/g, '/');
 
 const clampToLibrary = (dest) => {
-  const root = normalizePath(LIB_ROOT);
-  const wanted = normalizePath(dest || root);
-  return wanted.startsWith(root) ? wanted : root;
+  const root = LIB_ROOT;
+  const wanted = normalizePath(dest || root).replace(/\/+$/, '');
+  if (wanted === root) return root;
+  return wanted.startsWith(root + '/') ? wanted : root;
 };
 
 const fmtBytes = (n) => {
@@ -119,6 +134,7 @@ const LibraryUploadFile = ({ currentPath, userId, onFileUploaded }) => {
         maxBodyLength: Infinity,
         timeout: 0,
         withCredentials: true,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
 
       // Accept either { ok, uploaded: { to } } or { ok, to }
@@ -142,7 +158,11 @@ const LibraryUploadFile = ({ currentPath, userId, onFileUploaded }) => {
       if (err?.name === 'CanceledError' || axios.isCancel?.(err)) {
         // canceled by user; toast already shown
       } else {
-        toast.error(`❌ Upload failed: ${err?.message || 'Unknown error'}`);
+        const msg =
+          err?.response?.data?.error ||
+          err?.message ||
+          'Upload failed. Please try again.';
+        toast.error(`❌ ${msg}`);
       }
     } finally {
       // finish bar visually only if it wasn't canceled

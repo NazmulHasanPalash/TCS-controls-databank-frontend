@@ -9,9 +9,11 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   signInWithPopup,
+  linkWithCredential,
+  GoogleAuthProvider,
 } from 'firebase/auth';
 
-// Fix this path to your actual init file location if different:
+// ✅ Import from your singleton initializer (src/firebase.init.js)
 import { auth, googleProvider } from '../../Components/Firebase/firebase.init';
 
 import './Login.css';
@@ -28,42 +30,78 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false); // guard against double clicks
+
+  // For linking Google -> password account flow
+  const [pendingGoogleCred, setPendingGoogleCred] = useState(null); // AuthCredential | null
+  const [emailToLink, setEmailToLink] = useState(''); // email captured from Google error
 
   const location = useLocation();
   const history = useHistory();
-  const redirectUri = (location.state && location.state.from) || '/home';
+  const redirectUri =
+    (location.state &&
+      (location.state.from?.pathname || location.state.from)) ||
+    '/home';
 
-  // ---------- Google Login ----------
+  // ---------- Google Login (with linking if email already exists) ----------
   const handleGoogleLogin = async () => {
+    if (submitting) return;
     try {
+      setSubmitting(true);
+      setError('');
       await signInWithPopup(auth, googleProvider);
       toast.success('Google Sign-In Successful 🎉');
       history.push(redirectUri);
     } catch (err) {
+      // If the email is already in use by a password user, ask the user to login with password once, then link Google.
+      if (err?.code === 'auth/account-exists-with-different-credential') {
+        const emailFromErr = err?.customData?.email || '';
+        const cred = GoogleAuthProvider.credentialFromError(err);
+
+        setPendingGoogleCred(cred || null);
+        setEmail(emailFromErr);
+        setEmailToLink(emailFromErr);
+        setIsLogin(true); // switch to login view
+
+        const msg =
+          'This email already has a password account. Please sign in with email & password to link Google.';
+        setError(msg);
+        toast.info(msg);
+        return;
+      }
+
       const msg = err?.message || 'Google sign-in failed';
       setError(msg);
       toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   // ---------- Register / Login ----------
   const handleRegistration = async (e) => {
     e.preventDefault();
+    if (submitting) return;
 
-    if (password.length < 8) {
-      const msg = 'Password must be at least 8 characters long.';
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
-    if (!/(?=.*[A-Z])/.test(password)) {
-      const msg = 'Password must contain 1 uppercase letter.';
-      setError(msg);
-      toast.error(msg);
-      return;
+    // basic checks only for signup
+    if (!isLogin) {
+      if (password.length < 8) {
+        const msg = 'Password must be at least 8 characters long.';
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (!/(?=.*[A-Z])/.test(password)) {
+        const msg = 'Password must contain 1 uppercase letter.';
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
     }
 
     try {
+      setSubmitting(true);
+      setError('');
       if (isLogin) {
         await processLogin(email, password);
       } else {
@@ -73,18 +111,43 @@ const Login = () => {
       const msg = err?.message || 'Authentication failed';
       setError(msg);
       toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const processLogin = async (email, password) => {
-    await signInWithEmailAndPassword(auth, email, password);
+  const processLogin = async (emailArg, passwordArg) => {
+    await signInWithEmailAndPassword(auth, emailArg, passwordArg);
     setError('');
+
+    // If we came from a Google popup that said "account exists", link now
+    if (
+      pendingGoogleCred &&
+      auth.currentUser &&
+      emailToLink &&
+      emailToLink.toLowerCase() === String(emailArg).toLowerCase()
+    ) {
+      try {
+        await linkWithCredential(auth.currentUser, pendingGoogleCred);
+        toast.success('Google has been linked to your account ✅');
+      } catch (linkErr) {
+        toast.error(
+          linkErr?.code === 'auth/credential-already-in-use'
+            ? 'That Google account is already linked to another user.'
+            : linkErr?.message || 'Failed to link Google'
+        );
+      } finally {
+        setPendingGoogleCred(null);
+        setEmailToLink('');
+      }
+    }
+
     toast.success('Login Successful 🎉');
     history.push(redirectUri);
   };
 
-  const registerNewUser = async (email, password) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+  const registerNewUser = async (emailArg, passwordArg) => {
+    await createUserWithEmailAndPassword(auth, emailArg, passwordArg);
     setError('');
     await setUserName();
     await verifyEmail();
@@ -94,8 +157,9 @@ const Login = () => {
   };
 
   const setUserName = async () => {
-    if (auth.currentUser && name.trim()) {
-      await updateProfile(auth.currentUser, { displayName: name.trim() });
+    const displayName = name.trim();
+    if (auth.currentUser && displayName) {
+      await updateProfile(auth.currentUser, { displayName });
     }
   };
 
@@ -107,17 +171,22 @@ const Login = () => {
 
   // ---------- Reset Password ----------
   const handleResetPassword = async () => {
+    if (submitting) return;
     if (!email) {
       toast.info('Please enter your email.');
       return;
     }
     try {
+      setSubmitting(true);
+      setError('');
       await sendPasswordResetEmail(auth, email);
       toast.info('Password reset email sent! Check your inbox.');
     } catch (err) {
       const msg = err?.message || 'Failed to send reset email';
       setError(msg);
       toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -151,6 +220,7 @@ const Login = () => {
                         id="inputName"
                         placeholder="Your Name"
                         autoComplete="name"
+                        disabled={submitting}
                       />
                     </div>
                   )}
@@ -169,6 +239,7 @@ const Login = () => {
                       required
                       placeholder="name@address.com"
                       autoComplete="email"
+                      disabled={submitting}
                     />
                   </div>
 
@@ -192,6 +263,7 @@ const Login = () => {
                         autoComplete={
                           isLogin ? 'current-password' : 'new-password'
                         }
+                        disabled={submitting}
                       />
                       <button
                         type="button"
@@ -200,6 +272,7 @@ const Login = () => {
                         aria-label={
                           showPassword ? 'Hide password' : 'Show password'
                         }
+                        disabled={submitting}
                       >
                         <i
                           className={
@@ -215,24 +288,26 @@ const Login = () => {
                     {isLogin ? (
                       <p>
                         Don’t have an account yet?{' '}
-                        <span
-                          className="text-primary"
-                          style={{ cursor: 'pointer' }}
+                        <button
+                          type="button"
+                          className="btn btn-link p-0 align-baseline"
                           onClick={() => setIsLogin(false)}
+                          disabled={submitting}
                         >
                           Sign up
-                        </span>
+                        </button>
                       </p>
                     ) : (
                       <p>
                         Already have an account?{' '}
-                        <span
-                          className="text-primary"
-                          style={{ cursor: 'pointer' }}
+                        <button
+                          type="button"
+                          className="btn btn-link p-0 align-baseline"
                           onClick={() => setIsLogin(true)}
+                          disabled={submitting}
                         >
                           Sign in
-                        </span>
+                        </button>
                       </p>
                     )}
                   </div>
@@ -244,13 +319,19 @@ const Login = () => {
                   <button
                     type="submit"
                     className="btn btn-style btn-primary p-2 w-75 my-3"
+                    disabled={submitting}
                   >
-                    {isLogin ? 'Sign In' : 'Sign Up'}
+                    {submitting
+                      ? 'Please wait…'
+                      : isLogin
+                      ? 'Sign In'
+                      : 'Sign Up'}
                   </button>
                   <button
                     type="button"
                     onClick={handleResetPassword}
                     className="btn btn-danger btn-style p-2 w-75"
+                    disabled={submitting}
                   >
                     Reset Password
                   </button>
@@ -261,16 +342,14 @@ const Login = () => {
               <div className="text-center">
                 <h3 className="mt-5 mx-auto">
                   Google Account{' '}
-                  <a
-                    href="#!"
-                    className="text-primary"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleGoogleLogin();
-                    }}
+                  <button
+                    type="button"
+                    className="btn btn-link align-baseline p-0"
+                    onClick={handleGoogleLogin}
+                    disabled={submitting}
                   >
                     Sign In
-                  </a>
+                  </button>
                 </h3>
               </div>
             </div>
@@ -282,6 +361,7 @@ const Login = () => {
               src="image/img/covers/cover-21.jpg"
               className="img-fluid rounded-start"
               alt="cover"
+              loading="lazy"
             />
           </div>
         </div>

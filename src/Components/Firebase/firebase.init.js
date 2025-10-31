@@ -1,5 +1,5 @@
 // src/firebase.init.js
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import {
   getAuth,
   setPersistence,
@@ -7,33 +7,39 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth';
 import { getFirestore, collection, serverTimestamp } from 'firebase/firestore';
-// ❌ remove: import { getStorage } from 'firebase/storage';
-import firebaseConfig from './firebase.config';
 
-const app = initializeApp(firebaseConfig);
+import firebaseConfig from './firebase.config'; // must export a config object
 
-// Auth
-export const auth = getAuth(app);
+/* -------------------- App (singleton) -------------------- */
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+
+/* -------------------- Auth -------------------- */
+const auth = getAuth(app);
+
+// Set persistence once (don’t await at module top to avoid blocking)
 setPersistence(auth, browserLocalPersistence).catch(() => {});
-export const googleProvider = new GoogleAuthProvider();
+
+// Google provider (select account each time)
+const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Firestore
-export const db = getFirestore(app);
-export const database = {
+/* -------------------- Firestore -------------------- */
+const db = getFirestore(app);
+
+// Convenience handles to your common collections
+const database = {
   users: collection(db, 'users'),
-  docs: collection(db, 'docs'), // keep if you use it, or remove if not needed
-  // ❌ remove: files: collection(db, 'files'),
-  timestamp: serverTimestamp,
+  docs: collection(db, 'docs'),
+  timestamp: serverTimestamp, // call as database.timestamp()
 };
 
-// ❌ remove Storage export and helper
-// export const storage = getStorage(app);
-
-export async function getIdToken() {
+/* -------------------- Token helper -------------------- */
+async function getIdToken() {
   const user = auth.currentUser;
   if (!user) throw new Error('Not signed in');
-  return user.getIdToken();
+  return user.getIdToken(); // returns a Promise<string>
 }
 
+/* -------------------- Exports -------------------- */
+export { app, auth, db, googleProvider, database, serverTimestamp, getIdToken };
 export default app;

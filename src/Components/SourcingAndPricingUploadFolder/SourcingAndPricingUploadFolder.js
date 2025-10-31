@@ -17,9 +17,25 @@ import 'react-toastify/dist/ReactToastify.css';
 import './SourcingAndPricingUploadFolder.css';
 
 /* ================= Config ================= */
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+function ensureHttpBase(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  return s.replace(/\/+$/, '');
+}
+const API_BASE = ensureHttpBase(
+  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+);
 /** Hard root: cannot upload above this path */
-const SNP_ROOT = process.env.REACT_APP_SNP_START_PATH || '/sourcing-pricing';
+const RAW_SNP_ROOT =
+  process.env.REACT_APP_SNP_START_PATH || '/sourcing-pricing';
+const SNP_ROOT = (function normRoot(r) {
+  const t =
+    '/' +
+    String(r || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '');
+  return t.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/sourcing-pricing';
+})(RAW_SNP_ROOT);
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -32,8 +48,8 @@ const normalizePath = (p) =>
   ).replace(/\/{2,}/g, '/');
 
 const clampToRoot = (dest) => {
-  const root = normalizePath(SNP_ROOT);
-  const wanted = normalizePath(dest || root);
+  const root = SNP_ROOT;
+  const wanted = normalizePath(dest || root).replace(/\/+$/, '');
   if (wanted === root) return root;
   return wanted.startsWith(root + '/') ? wanted : root;
 };
@@ -96,6 +112,15 @@ function TreeView({ node, depth = 0 }) {
     </div>
   );
 }
+
+TreeView.propTypes = {
+  node: PropTypes.shape({
+    name: PropTypes.string,
+    type: PropTypes.oneOf(['dir', 'file']),
+    children: PropTypes.instanceOf(Map),
+  }).isRequired,
+  depth: PropTypes.number,
+};
 
 /* ================= Component ================= */
 function SourcingAndPricingUploadFolder({
@@ -228,6 +253,7 @@ function SourcingAndPricingUploadFolder({
         maxBodyLength: Infinity,
         timeout: 0,
         withCredentials: true,
+        validateStatus: () => true,
       });
 
       if (!res?.data?.ok) throw new Error(res?.data?.error || 'Upload failed');
@@ -441,7 +467,7 @@ function SourcingAndPricingUploadFolder({
                 </div>
 
                 {/* Folder selection */}
-                <Form.Group controlId="formFolder" className="my-2">
+                <Form.Group controlId="formSnpFolder" className="my-2">
                   <Form.Label className="fw-semibold">
                     Choose a folder
                   </Form.Label>

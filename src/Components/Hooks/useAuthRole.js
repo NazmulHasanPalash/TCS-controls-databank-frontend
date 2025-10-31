@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../Firebase/firebase.init';
+import { auth, db } from '../Firebase/firebase.init'; // ✅ correct path (src/firebase.init.js)
 
 const ROLE_ORDER = ['operator', 'moderator', 'admin'];
 
@@ -47,8 +47,10 @@ export function useAuthRole() {
       }
       const ref = doc(db, 'users', uid);
       const snap = await getDoc(ref);
-      const r = snap.exists() ? normalizeRole(snap.data().role) : 'user';
-      setRole(r);
+
+      // ✅ Always normalize, even when missing
+      const raw = snap.exists() ? snap.data()?.role : undefined;
+      setRole(normalizeRole(raw));
     } catch (e) {
       setRole('operator'); // safe fallback; server should still enforce RBAC
       setError(e?.message || 'Failed to read user role');
@@ -93,7 +95,7 @@ export function useAuthRole() {
     user, // Firebase Auth user or null
     role, // 'operator' | 'moderator' | 'admin'
     loading, // original flag
-    isLoading: loading, // ✅ alias for router code that expects isLoading
+    isLoading: loading, // alias for code expecting isLoading
     error,
 
     // exact-role flags
@@ -103,7 +105,7 @@ export function useAuthRole() {
 
     // inclusive helpers
     isModeratorPlus, // moderator or admin
-    isOperatorPlus, // operator or above (i.e., any valid role)
+    isOperatorPlus, // operator or above
 
     // utils
     gte, // (aRole, bRole) => boolean
