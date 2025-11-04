@@ -8,7 +8,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import './LibraryCreateFolder.css';
 
 /* ======================== Config ======================== */
-const RAW_API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+const RAW_API_BASE =
+  process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my';
 const LIB_BASE = process.env.REACT_APP_LIB_BASE || '/library';
 
 /** Ensure API base has scheme and no trailing slash */

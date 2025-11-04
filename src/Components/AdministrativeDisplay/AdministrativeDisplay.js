@@ -25,15 +25,13 @@ function ensureHttpBase(u) {
   return s.replace(/\/+$/, '');
 }
 const API_BASE = ensureHttpBase(
-  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+  process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my'
 );
 
-const START_PATH = (() => {
-  const raw = (
-    process.env.REACT_APP_ADMIN_START_PATH || '/administrative'
-  ).replace(/\/+$/, '');
-  return raw || '/administrative';
-})();
+const START_PATH =
+  (
+    process.env.REACT_APP_ADMINISTRATIVE_START_PATH || '/administrative'
+  ).replace(/\/+$/, '') || '/administrative';
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -47,7 +45,7 @@ const normalizePath = (p) =>
 const joinPosix = (a, b) => normalizePath(`${a || ''}/${b || ''}`);
 
 const fmtBytes = (bytes) => {
-  if (bytes == null || Number.isNaN(Number(bytes))) return '—';
+  if (bytes == null || isNaN(bytes)) return '—';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let i = 0;
   let n = Number(bytes);
@@ -71,14 +69,25 @@ const fmtDate = (d) => {
 };
 
 /* ---- file type helpers ---- */
-const isImg = (n) => /\.(png|jpe?g|gif|webp|svg)$/i.test(n);
+const isSvg = (n) => /\.svg$/i.test(n);
+const isImg = (n) => /\.(png|jpe?g|gif|webp|bmp|tiff?|ico|icns)$/i.test(n); // svg handled separately
+const isHtml = (n) => /\.html?$/i.test(n);
 const isTxt = (n) =>
-  /\.(txt|json|xml|csv|md|markdown|html?|css|js|mjs|cjs|ts|tsx|jsx|yml|yaml|log)$/i.test(
-    n
-  );
+  /\.(txt|json|xml|csv|md|css|js|ts|tsx|jsx|yml|yaml|log)$/i.test(n);
 const isPdf = (n) => /\.pdf$/i.test(n);
 const isAud = (n) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(n);
-const isVid = (n) => /\.(mp4|webm|ogv|mov|mkv)$/i.test(n);
+const isVid = (n) => /\.(mp4|m4v|webm|ogv|mov|mkv|3gp)$/i.test(n);
+const isOffice = (n) => /\.(docx?|xlsx?|pptx?)$/i.test(n);
+
+const guessVideoMime = (name, fallback = 'video/mp4') => {
+  if (/\.mp4$/i.test(name) || /\.m4v$/i.test(name)) return 'video/mp4';
+  if (/\.webm$/i.test(name)) return 'video/webm';
+  if (/\.ogv$/i.test(name)) return 'video/ogg';
+  if (/\.mov$/i.test(name)) return 'video/quicktime';
+  if (/\.mkv$/i.test(name)) return 'video/x-matroska';
+  if (/\.3gp$/i.test(name)) return 'video/3gpp';
+  return fallback;
+};
 
 const sortItems = (items) =>
   [...items].sort((a, b) => {
@@ -103,6 +112,7 @@ const triggerDownload = (url, filename) => {
   a.href = url;
   if (filename) a.setAttribute('download', filename);
   a.target = '_blank';
+  a.rel = 'noopener noreferrer';
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -121,16 +131,29 @@ const collapseSelection = (paths) => {
   return result;
 };
 
-/* =============== Small Modal (custom) =============== */
+/* =============== Small Modal =============== */
 function Modal({ title, children, onClose, showClose = true }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       role="dialog"
       aria-modal="true"
+      aria-label={title}
       className="libd-modal-overlay"
       onMouseDown={onClose}
     >
-      <div className="libd-modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className="libd-modal"
+        onMouseDown={(e) => e.stopPropagation()}
+        role="document"
+      >
         <div className="libd-modal-header">
           <div className="libd-modal-title">{title}</div>
           {showClose && (
@@ -148,6 +171,7 @@ function Modal({ title, children, onClose, showClose = true }) {
     </div>
   );
 }
+
 Modal.propTypes = {
   title: PropTypes.string,
   children: PropTypes.node,
@@ -158,6 +182,7 @@ Modal.propTypes = {
 /* =============== Confirm Delete Modal =============== */
 function ConfirmDeleteModal({ open, items, submitting, onCancel, onConfirm }) {
   if (!open) return null;
+
   const total = items.length;
   const first = items[0];
   const title =
@@ -205,9 +230,10 @@ function ConfirmDeleteModal({ open, items, submitting, onCancel, onConfirm }) {
     </Modal>
   );
 }
+
 ConfirmDeleteModal.propTypes = {
   open: PropTypes.bool.isRequired,
-  items: PropTypes.array.isRequired,
+  items: PropTypes.array.isRequired, // [{name, fullPath, isDirectory}]
   submitting: PropTypes.bool.isRequired,
   onCancel: PropTypes.func.isRequired,
   onConfirm: PropTypes.func.isRequired,
@@ -238,10 +264,15 @@ function AdministrativeDisplay() {
   // Preview modal
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState({
-    type: 'text',
+    type: 'text', // image | pdf | audio | video | text | iframe | office | svg
     url: '',
     text: '',
+    name: '',
+    mime: '', // used for video source type
   });
+
+  // Blob URL tracking
+  const objectUrlRef = useRef('');
 
   // Rename modal
   const [renameOpen, setRenameOpen] = useState(false);
@@ -252,7 +283,7 @@ function AdministrativeDisplay() {
 
   // Confirm delete modal state
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmItems, setConfirmItems] = useState([]);
+  const [confirmItems, setConfirmItems] = useState([]); // [{name, fullPath, isDirectory}]
   const [confirmSubmitting, setConfirmSubmitting] = useState(false);
 
   /* ===== Fetcher ===== */
@@ -261,10 +292,10 @@ function AdministrativeDisplay() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const { data } = await axios.get(
-        `${API_BASE}/api/list?path=${encodeURIComponent(path)}`,
-        { signal: controller.signal, withCredentials: true }
-      );
+      const { data } = await axios.get(`${API_BASE}/api/list`, {
+        params: { path },
+        signal: controller.signal,
+      });
       if (!data?.ok) throw new Error(data?.error || 'Failed to fetch.');
       const normalized = (data.items || []).map((it) => ({
         name: it.name,
@@ -312,6 +343,7 @@ function AdministrativeDisplay() {
       if (cancelled) return;
       const job = queue.shift();
       if (!job) return;
+
       const { full } = job;
 
       try {
@@ -319,7 +351,6 @@ function AdministrativeDisplay() {
         try {
           const r1 = await axios.get(`${API_BASE}/api/size`, {
             params: { path: full },
-            withCredentials: true,
           });
           if (r1?.data?.ok && typeof r1.data.size === 'number')
             got = r1.data.size;
@@ -328,20 +359,22 @@ function AdministrativeDisplay() {
           try {
             const r2 = await axios.get(`${API_BASE}/api/folder/size`, {
               params: { path: full },
-              withCredentials: true,
             });
             if (r2?.data?.ok && typeof r2.data.size === 'number')
               got = r2.data.size;
           } catch {}
         }
-        if (!cancelled && got != null)
+
+        if (!cancelled && got != null) {
           setFolderSizes((prev) => ({ ...prev, [full]: got }));
+        }
       } finally {
         if (!cancelled && queue.length) runNext();
       }
     };
 
     for (let i = 0; i < Math.min(concurrency, queue.length); i++) runNext();
+
     return () => {
       cancelled = true;
     };
@@ -365,6 +398,7 @@ function AdministrativeDisplay() {
   }, []);
 
   /* ===== Selection helpers ===== */
+  const keyOf = (item) => joinPosix(path, item.name);
   const isSelected = (k) => selected.has(k);
   const toggleOne = (k) =>
     setSelected((prev) => {
@@ -385,9 +419,9 @@ function AdministrativeDisplay() {
   const onRowContextMenu = (e, item) => {
     e.preventDefault();
     setCtxTarget(item);
-    const pad = 8,
-      approxW = 220,
-      approxH = 160;
+    const pad = 8;
+    const approxW = 220;
+    const approxH = 160;
     const x = Math.max(
       pad,
       Math.min(window.innerWidth - pad - approxW, e.clientX)
@@ -425,25 +459,25 @@ function AdministrativeDisplay() {
   const refresh = () => fetchList();
 
   /* ===== File ops (single-item) ===== */
+  const buildDownloadUrl = (filePath) =>
+    `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
+
   const handleDownload = (item) => {
     if (item.isDirectory) {
       alert('Use "Download as ZIP" to download folders.');
       return;
     }
     const filePath = joinPosix(path, item.name);
-    const url = `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
-    triggerDownload(url, item.name);
+    triggerDownload(buildDownloadUrl(filePath), item.name);
     setCtxOpen(false);
   };
 
   const zipAndDownloadFolder = async (folderName) => {
     const fullPath = joinPosix(path, folderName);
     try {
-      const { data } = await axios.post(
-        `${API_BASE}/api/zip`,
-        { path: fullPath },
-        { withCredentials: true }
-      );
+      const { data } = await axios.post(`${API_BASE}/api/zip`, {
+        path: fullPath,
+      });
       if (data && data.ok && data.downloadId) {
         const url = `${API_BASE}/api/zip/${encodeURIComponent(
           data.downloadId
@@ -486,22 +520,35 @@ function AdministrativeDisplay() {
     setConfirmSubmitting(true);
     setWorking(true);
     try {
-      for (const it of confirmItems) {
-        if (it.isDirectory) {
-          const res = await axios.delete(`${API_BASE}/api/folder`, {
-            data: { path: it.fullPath },
-            withCredentials: true,
-          });
-          if (!res?.data?.ok) throw new Error(res?.data?.error || it.name);
-        } else {
-          const res = await axios.delete(`${API_BASE}/api/file`, {
-            data: { path: it.fullPath },
-            withCredentials: true,
-          });
-          if (!res?.data?.ok) throw new Error(res?.data?.error || it.name);
+      if (confirmItems.length === 1) {
+        const one = confirmItems[0];
+        const res = await axios.post(
+          `${API_BASE}/api/delete`,
+          { path: one.fullPath },
+          { validateStatus: () => true }
+        );
+        if (!(res.status === 200 && res.data?.ok)) {
+          throw new Error(res.data?.error || 'Delete failed.');
         }
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.delete(one.fullPath);
+          return next;
+        });
+      } else {
+        for (const it of confirmItems) {
+          const res = await axios.post(
+            `${API_BASE}/api/delete`,
+            { path: it.fullPath },
+            { validateStatus: () => true }
+          );
+          if (!(res.status === 200 && res.data?.ok)) {
+            throw new Error(res.data?.error || `Delete failed: ${it.name}`);
+          }
+        }
+        clearSelection();
       }
-      clearSelection();
+
       await fetchList();
       setConfirmOpen(false);
       setConfirmItems([]);
@@ -513,110 +560,180 @@ function AdministrativeDisplay() {
     }
   };
 
-  /* ===== Rename ===== */
-  const openRename = (item) => {
-    setRenameValue(item?.name || '');
-    setRenameOpen(true);
-    setCtxOpen(false);
-    setCtxTarget(item);
-  };
-
-  const submitRename = async () => {
-    const item = ctxTarget;
-    const newName = (renameValue || '').trim();
-    if (!item || !newName || newName === item.name) {
-      setRenameOpen(false);
-      return;
-    }
-    setWorking(true);
-    try {
-      const from = joinPosix(path, item.name);
-      if (item.isDirectory) {
-        const to = joinPosix(path, newName);
-        const { data } = await axios.put(
-          `${API_BASE}/api/folder`,
-          { from, to },
-          { withCredentials: true }
-        );
-        if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
-      } else {
-        const { data } = await axios.post(
-          `${API_BASE}/api/file/rename`,
-          { from, newName },
-          { withCredentials: true }
-        );
-        if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
-      }
-      setRenameOpen(false);
-      setCtxTarget(null);
-      fetchList();
-    } catch (err) {
-      alert(`Rename failed: ${err?.message || 'Unknown error'}`);
-    } finally {
-      setWorking(false);
+  /* ===== Preview helpers (blob/object URL) ===== */
+  const revokeObjectUrl = () => {
+    if (objectUrlRef.current) {
+      try {
+        URL.revokeObjectURL(objectUrlRef.current);
+      } catch {}
+      objectUrlRef.current = '';
     }
   };
 
-  /* ===== Preview (inline when possible) ===== */
+  const fetchBlobUrl = async (filePath) => {
+    const res = await axios.get(`${API_BASE}/api/download`, {
+      params: { path: filePath },
+      responseType: 'blob',
+      validateStatus: () => true,
+    });
+
+    if (!(res.status >= 200 && res.status < 300)) {
+      throw new Error(`Preview request failed (${res.status})`);
+    }
+
+    const ct = res.headers?.['content-type'] || 'application/octet-stream';
+    const blob = new Blob([res.data], { type: ct });
+    return { url: URL.createObjectURL(blob), type: ct };
+  };
+
+  /* ===== Preview ===== */
   const handlePreview = async (item) => {
     if (item.isDirectory) return;
     const filePath = joinPosix(path, item.name);
-    const downloadURL = `${API_BASE}/api/download?path=${encodeURIComponent(
-      filePath
-    )}`;
+
+    revokeObjectUrl();
 
     try {
-      if (isImg(item.name)) {
-        setPreviewData({ type: 'image', url: downloadURL, text: '' });
-        setPreviewOpen(true);
-      } else if (isPdf(item.name)) {
-        setPreviewData({ type: 'pdf', url: downloadURL, text: '' });
-        setPreviewOpen(true);
-      } else if (isAud(item.name)) {
-        setPreviewData({ type: 'audio', url: downloadURL, text: '' });
-        setPreviewOpen(true);
-      } else if (isVid(item.name)) {
-        setPreviewData({ type: 'video', url: downloadURL, text: '' });
-        setPreviewOpen(true);
-      } else if (isTxt(item.name)) {
-        const resp = await axios.get(`${API_BASE}/api/file/content`, {
+      // SVG
+      if (isSvg(item.name)) {
+        const { data } = await axios.get(`${API_BASE}/api/file/content`, {
           params: { path: filePath, encoding: 'utf8' },
-          withCredentials: true,
           validateStatus: () => true,
         });
-        if (resp?.data?.ok) {
-          setPreviewData({
-            type: 'text',
-            url: '',
-            text: String(resp.data.content || ''),
-          });
-          setPreviewOpen(true);
-        } else {
-          const raw = await axios.get(downloadURL, {
-            responseType: 'text',
-            transformResponse: [(v) => v],
-            validateStatus: () => true,
-          });
-          if (raw.status >= 200 && raw.status < 300) {
-            setPreviewData({
-              type: 'text',
-              url: '',
-              text: String(raw.data || ''),
-            });
-            setPreviewOpen(true);
-          } else {
-            throw new Error(resp?.data?.error || 'Preview failed.');
-          }
-        }
-      } else {
-        handleDownload(item);
+        if (!data?.ok) throw new Error(data?.error || 'Preview failed.');
+        const svgText = String(data.content || '');
+        const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(svgBlob);
+        objectUrlRef.current = url;
+        setPreviewData({
+          type: 'svg',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+      }
+      // Image (non-SVG)
+      else if (isImg(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({
+          type: 'image',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+      }
+      // PDF
+      else if (isPdf(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({
+          type: 'pdf',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+      }
+      // Audio
+      else if (isAud(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({
+          type: 'audio',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+      }
+      // Video (native controls enabled for playback)
+      else if (isVid(item.name)) {
+        const { url, type } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        const mime =
+          type && type !== 'application/octet-stream'
+            ? type
+            : guessVideoMime(item.name);
+        setPreviewData({
+          type: 'video',
+          url,
+          text: '',
+          name: item.name,
+          mime,
+        });
+        setPreviewOpen(true);
+      }
+      // HTML (sandboxed)
+      else if (isHtml(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({
+          type: 'iframe',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+      }
+      // Office via Microsoft viewer
+      else if (isOffice(item.name)) {
+        const publicUrl = buildDownloadUrl(filePath);
+        const officeViewerUrl =
+          'https://view.officeapps.live.com/op/embed.aspx?src=' +
+          encodeURIComponent(publicUrl);
+        setPreviewData({
+          type: 'office',
+          url: officeViewerUrl,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+      }
+      // Text-like
+      else if (isTxt(item.name)) {
+        const { data } = await axios.get(`${API_BASE}/api/file/content`, {
+          params: { path: filePath, encoding: 'utf8' },
+          validateStatus: () => true,
+        });
+        if (!data?.ok) throw new Error(data?.error || 'Preview failed.');
+        setPreviewData({
+          type: 'text',
+          url: '',
+          text: String(data.content || ''),
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+      }
+      // Fallback
+      else {
+        const rawUrl = buildDownloadUrl(filePath);
+        window.open(rawUrl, '_blank', 'noopener,noreferrer');
       }
     } catch (err) {
+      revokeObjectUrl();
       alert(`Preview failed: ${err?.message || 'Unknown error'}`);
     } finally {
       setCtxOpen(false);
     }
   };
+
+  useEffect(() => {
+    if (!previewOpen) {
+      revokeObjectUrl();
+      setPreviewData((p) => ({ ...p, url: '' }));
+    }
+    return () => revokeObjectUrl();
+  }, [previewOpen]);
 
   /* ===== Folder upload success hook ===== */
   const handleFolderUploaded = useCallback(() => {
@@ -662,21 +779,73 @@ function AdministrativeDisplay() {
     });
   }, [visibleItems, path]);
 
+  /* ===== RENAME ===== */
+  const openRename = useCallback((item) => {
+    setCtxOpen(false);
+    setCtxTarget(item);
+    setRenameValue(item?.name || '');
+    setRenameOpen(true);
+  }, []);
+
+  const submitRename = useCallback(async () => {
+    if (!ctxTarget) return;
+    const newName = (renameValue || '').trim();
+
+    if (!newName) {
+      alert('Please enter a new name.');
+      return;
+    }
+    if (/[\\/]/.test(newName)) {
+      alert('Name cannot include slashes.');
+      return;
+    }
+    if (newName === ctxTarget.name) {
+      setRenameOpen(false);
+      return;
+    }
+
+    setWorking(true);
+    try {
+      const fromPath = joinPosix(path, ctxTarget.name);
+
+      if (ctxTarget.isDirectory) {
+        const toPath = joinPosix(path, newName);
+        const res = await axios.put(
+          `${API_BASE}/api/folder`,
+          { from: fromPath, to: toPath, overwrite: false },
+          { validateStatus: () => true }
+        );
+        if (!(res.status === 200 && res.data?.ok)) {
+          throw new Error(res.data?.error || 'Folder rename failed.');
+        }
+      } else {
+        const res = await axios.post(
+          `${API_BASE}/api/file/rename`,
+          { from: fromPath, newName, overwrite: false },
+          { validateStatus: () => true }
+        );
+        if (!(res.status === 200 && res.data?.ok)) {
+          throw new Error(res.data?.error || 'File rename failed.');
+        }
+      }
+
+      setRenameOpen(false);
+      setCtxTarget(null);
+      await fetchList();
+    } catch (err) {
+      alert(err?.message || 'Rename failed.');
+    } finally {
+      setWorking(false);
+    }
+  }, [ctxTarget, renameValue, path, fetchList]);
+
   /* ================= Render ================= */
   return (
     <div className="libd-root">
       {/* Toolbar wrapper */}
-      <div className="libd-toolbar" style={{ display: 'block', width: '100%' }}>
+      <div className="libd-toolbar">
         {/* Row 1: Breadcrumb path */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 10,
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="libd-toolbar-row">
           <BredCrum
             className="libd-breadcrumb"
             path={path}
@@ -686,23 +855,12 @@ function AdministrativeDisplay() {
               clearSelection();
             }}
             title={path}
-            roots={[START_PATH]}
-            rootLabelMap={{ [START_PATH]: 'Administrative' }}
           />
         </div>
 
-        {/* Row 2: ALL BUTTONS RIGHT */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            justifyContent: 'flex-end', // ⬅️ buttons right
-            flexWrap: 'wrap',
-            marginBottom: 8,
-          }}
-        >
-          <div className="libd-actions" style={{ marginLeft: 0 }}>
+        {/* Row 2: Buttons + Search */}
+        <div className="libd-toolbar-row libd-toolbar-actions">
+          <div className="libd-actions">
             <AdministrativeUploadFile
               currentPath={path}
               onFileUploaded={fetchList}
@@ -717,6 +875,7 @@ function AdministrativeDisplay() {
                 name: path.split('/').filter(Boolean).pop() || 'administrative',
               }}
               onAdministrativeCreateFolder={fetchList}
+              onLibraryCreateFolder={fetchList}
               buttonVariant="outline-dark"
             />
             <button onClick={goUp} title="Up" className="libd-pill">
@@ -734,21 +893,11 @@ function AdministrativeDisplay() {
               🗑 Delete Selected ({selected.size})
             </button>
           </div>
-        </div>
 
-        {/* Row 3: Search input (left-aligned) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            marginBottom: 12,
-          }}
-        >
           <input
             ref={searchInputRef}
             type="text"
-            className="libd-input"
+            className="libd-input libd-input-search"
             placeholder="Search in this folder…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -756,7 +905,6 @@ function AdministrativeDisplay() {
               if (e.key === 'Escape') setSearchTerm('');
             }}
             aria-label="Search files and folders in this folder"
-            style={{ width: 'min(420px, 90vw)' }}
           />
         </div>
       </div>
@@ -774,11 +922,10 @@ function AdministrativeDisplay() {
 
       {/* ================== Scrollable table ================== */}
       <div className="libd-table">
-        {/* Header row (sticky) */}
+        {/* Header row */}
         <div className="libd-thead">
           <input
             type="checkbox"
-            className="libd-checkbox"
             aria-label="Select all"
             checked={
               visibleItems.length > 0 &&
@@ -805,27 +952,24 @@ function AdministrativeDisplay() {
             </div>
           ) : (
             visibleItems.map((item) => {
-              const k = joinPosix(path, item.name);
+              const k = keyOf(item);
               const full = joinPosix(path, item.name);
               const sizeToShow = item.isDirectory
                 ? typeof item.size === 'number'
                   ? item.size
                   : folderSizes[full]
                 : item.size;
-              const selectedRow = isSelected(k);
-
               return (
                 <div
                   key={k}
                   onDoubleClick={() => onRowDoubleClick(item)}
                   onContextMenu={(e) => onRowContextMenu(e, item)}
-                  className={`libd-row ${selectedRow ? 'is-selected' : ''}`}
+                  className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
                 >
                   <input
                     type="checkbox"
-                    className="libd-checkbox"
                     aria-label={`Select ${item.name}`}
-                    checked={selectedRow}
+                    checked={isSelected(k)}
                     onChange={(e) => {
                       e.stopPropagation();
                       toggleOne(k);
@@ -926,7 +1070,24 @@ function AdministrativeDisplay() {
 
       {/* Preview Modal */}
       {previewOpen && (
-        <Modal onClose={() => setPreviewOpen(false)} title="Preview">
+        <Modal
+          onClose={() => setPreviewOpen(false)}
+          title={previewData.name ? `Preview — ${previewData.name}` : 'Preview'}
+        >
+          {/* SVG */}
+          {previewData.type === 'svg' && (
+            <div className="libd-preview-media">
+              <object
+                data={previewData.url}
+                type="image/svg+xml"
+                className="libd-preview-object"
+                aria-label="SVG preview"
+              >
+                <img src={previewData.url} alt="SVG preview" />
+              </object>
+            </div>
+          )}
+
           {previewData.type === 'image' && (
             <img
               src={previewData.url}
@@ -934,6 +1095,7 @@ function AdministrativeDisplay() {
               className="libd-preview-media"
             />
           )}
+
           {previewData.type === 'pdf' && (
             <iframe
               title="pdf"
@@ -941,21 +1103,59 @@ function AdministrativeDisplay() {
               className="libd-preview-pdf"
             />
           )}
+
           {previewData.type === 'audio' && (
-            <audio controls className="libd-preview-audio">
+            <audio controls className="libd-preview-audio" preload="metadata">
               <source src={previewData.url} />
               Your browser does not support the audio element.
             </audio>
           )}
+
+          {/* ✅ Video preview with native controller (playback controls visible) */}
           {previewData.type === 'video' && (
-            <video controls className="libd-preview-media">
-              <source src={previewData.url} />
-              Your browser does not support the video element.
+            <video
+              key={previewData.url} /* force reload when URL changes */
+              controls /* show controller */
+              playsInline
+              preload="metadata"
+              className="libd-preview-video libd-preview-media"
+              style={{ pointerEvents: 'auto' }} /* ensure interactions work */
+              onError={() => {
+                try {
+                  window.open(previewData.url, '_blank', 'noopener,noreferrer');
+                } catch {}
+              }}
+            >
+              <source
+                src={previewData.url}
+                type={previewData.mime || 'video/mp4'}
+              />
+              Your browser does not support the video tag.
             </video>
           )}
+
+          {previewData.type === 'iframe' && (
+            <iframe
+              title="html"
+              src={previewData.url}
+              className="libd-preview-pdf"
+              sandbox="allow-same-origin allow-forms allow-scripts"
+            />
+          )}
+
+          {/* Office Online viewer */}
+          {previewData.type === 'office' && (
+            <iframe
+              title="office"
+              src={previewData.url}
+              className="libd-preview-pdf"
+            />
+          )}
+
           {previewData.type === 'text' && (
             <pre className="libd-preview-text">{previewData.text}</pre>
           )}
+
           <div className="libd-modal-actions">
             <button
               onClick={() => setPreviewOpen(false)}
@@ -1001,7 +1201,7 @@ function AdministrativeDisplay() {
         </Modal>
       )}
 
-      {/* Confirm Delete Modal */}
+      {/* Confirm Delete Modal (single + bulk) */}
       <ConfirmDeleteModal
         open={confirmOpen}
         items={confirmItems}

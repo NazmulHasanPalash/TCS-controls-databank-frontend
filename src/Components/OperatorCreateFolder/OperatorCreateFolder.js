@@ -9,7 +9,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import './OperatorCreateFolder.css';
 
 // Your API base + operator base on FTP
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+const API_BASE =
+  process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my';
 const OPERATOR_BASE = '/operator';
 
 /** Build the parent FTP path based on your folder object shape */

@@ -8,7 +8,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import './CustomerOrderCreateFolder.css';
 
 /* ======================== Config ======================== */
-const RAW_API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+const RAW_API_BASE =
+  process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my';
 const CUST_BASE =
   process.env.REACT_APP_CUSTOMER_ORDER_START_PATH || '/customer-order';
 

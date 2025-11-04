@@ -20,7 +20,7 @@ const RAW_BASE =
   (typeof process !== 'undefined' &&
     process.env &&
     process.env.REACT_APP_API_BASE) ||
-  'http://localhost:5000';
+  'https://databank.tcscontrols.com.my';
 
 const API_BASE = String(RAW_BASE).replace(/\/+$/, ''); // strip trailing slash
 

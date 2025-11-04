@@ -3,16 +3,39 @@ import React from 'react';
 import './Header.css';
 import { HashLink } from 'react-router-hash-link';
 
-// ✅ Correct hook paths (lowercase "hooks")
 import useAuthRole from '../../Components/Hooks/useAuthRole'; // role & user state
-import useFirebase from '../../Components/Hooks/useFirebase'; // logout helper (rename of your old useAuth)
+import useFirebase from '../../Components/Hooks/useFirebase'; // logout helper
 
-// Visible to Admin: Admin can see *Admin*, *Moderator*, *Operator*, and *Users* sections
 const Header = () => {
-  // Role & user state
-  const { user, isLoading, isAdmin, isModerator, isOperator } = useAuthRole();
+  // Safely read role state; provide hard defaults so UI never crashes
+  const {
+    user = null,
+    isLoading = false,
+    isAdmin: rawIsAdmin = false,
+    isModerator: rawIsModerator = false,
+    isOperator: rawIsOperator = false,
+  } = (function safeUseAuthRole() {
+    try {
+      return useAuthRole?.() || {};
+    } catch {
+      return {};
+    }
+  })();
 
-  // Logout from your Firebase hook
+  // Normalize: only literal boolean true counts
+  const isAdmin = rawIsAdmin === true;
+  const isModerator = rawIsModerator === true;
+  const isOperator = rawIsOperator === true;
+
+  // 🔐 Visibility rules:
+  // - Users (no role) CANNOT see Operator
+  // - Operators CAN see Users (plus Admins can too)
+  const canSeeAdminLink = isAdmin;
+  const canSeeModeratorLink = isModerator || isAdmin; // admin inherits moderator
+  const canSeeOperatorLink = isOperator || isModerator || isAdmin; // exclude plain users
+  const canSeeUsersLink = isAdmin || isOperator; // ✅ operators (and admins) can see Users
+
+  // Logout
   const { logOut } = (function safeUseFirebase() {
     try {
       return useFirebase?.() || {};
@@ -25,22 +48,12 @@ const Header = () => {
     try {
       if (typeof logOut === 'function') {
         await logOut();
-      } else {
-        // Fallback: hash redirect (works with HashRouter)
-        window.location.hash = '#/login';
       }
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Logout failed:', e);
+    } finally {
+      // Always navigate to login after attempting logout
       window.location.hash = '#/login';
     }
   };
-
-  // Visibility flags
-  const canSeeAdminLink = !!isAdmin;
-  const canSeeModeratorLink = isModerator || isAdmin; // admin inherits
-  const canSeeOperatorLink = isOperator || isModerator || isAdmin; // any signed-in role
-  const canSeeUsersLink = !!isAdmin; // 🔹 explicit Users link for admins
 
   return (
     <div className="w-100 mx-auto margin-header">
@@ -171,18 +184,16 @@ const Header = () => {
                     </li>
                   )}
 
-                  {/* Admin block — Admin can also check Moderator, Operator and Users */}
+                  {/* Admin / Users area */}
                   {canSeeAdminLink && (
-                    <>
-                      <li className="nav-item">
-                        <HashLink
-                          className="nav-link active header-text-style"
-                          to="/admin"
-                        >
-                          Admin
-                        </HashLink>
-                      </li>
-                    </>
+                    <li className="nav-item">
+                      <HashLink
+                        className="nav-link active header-text-style"
+                        to="/admin"
+                      >
+                        Admin
+                      </HashLink>
+                    </li>
                   )}
 
                   {/* Logout */}

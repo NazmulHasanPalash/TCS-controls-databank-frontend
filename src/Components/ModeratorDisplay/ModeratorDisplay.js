@@ -25,7 +25,7 @@ function ensureHttpBase(u) {
   return s.replace(/\/+$/, '');
 }
 const API_BASE = ensureHttpBase(
-  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+  process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my'
 );
 
 const START_PATH =
@@ -70,14 +70,25 @@ const fmtDate = (d) => {
 };
 
 /* ---- file type helpers ---- */
-const isImg = (n) => /\.(png|jpe?g|gif|webp|svg)$/i.test(n);
+const isSvg = (n) => /\.svg$/i.test(n);
+const isImg = (n) => /\.(png|jpe?g|gif|webp|bmp|tiff?|ico|icns)$/i.test(n); // svg handled separately
 const isHtml = (n) => /\.html?$/i.test(n);
 const isTxt = (n) =>
   /\.(txt|json|xml|csv|md|css|js|ts|tsx|jsx|yml|yaml|log)$/i.test(n);
 const isPdf = (n) => /\.pdf$/i.test(n);
 const isAud = (n) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(n);
-const isVid = (n) => /\.(mp4|webm|ogv|mov|mkv)$/i.test(n);
-const isOffice = (n) => /\.(docx?|xlsx?|pptx?)$/i.test(n); // download instead
+const isVid = (n) => /\.(mp4|m4v|webm|ogv|mov|mkv|3gp)$/i.test(n);
+const isOffice = (n) => /\.(docx?|xlsx?|pptx?)$/i.test(n);
+
+const guessVideoMime = (name, fallback = 'video/mp4') => {
+  if (/\.mp4$/i.test(name) || /\.m4v$/i.test(name)) return 'video/mp4';
+  if (/\.webm$/i.test(name)) return 'video/webm';
+  if (/\.ogv$/i.test(name)) return 'video/ogg';
+  if (/\.mov$/i.test(name)) return 'video/quicktime';
+  if (/\.mkv$/i.test(name)) return 'video/x-matroska';
+  if (/\.3gp$/i.test(name)) return 'video/3gpp';
+  return fallback;
+};
 
 const sortItems = (items) =>
   [...items].sort((a, b) => {
@@ -254,10 +265,11 @@ function ModeratorDisplay() {
   // Preview modal
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState({
-    type: 'text', // image | pdf | audio | video | text | iframe
+    type: 'text', // image | pdf | audio | video | text | iframe | office | svg
     url: '',
     text: '',
     name: '',
+    mime: '', // used for video source type
   });
 
   // Blob URL tracking
@@ -297,7 +309,7 @@ function ModeratorDisplay() {
           : null,
       }));
       setItems(sortItems(normalized));
-      setFolderSizes({}); // reset size cache when path changes
+      setFolderSizes({});
     } catch (err) {
       if (axios.isCancel?.(err) || err?.name === 'CanceledError') return;
       setErrorMsg(err?.message || 'Failed to load.');
@@ -448,14 +460,16 @@ function ModeratorDisplay() {
   const refresh = () => fetchList();
 
   /* ===== File ops (single-item) ===== */
+  const buildDownloadUrl = (filePath) =>
+    `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
+
   const handleDownload = (item) => {
     if (item.isDirectory) {
       alert('Use "Download as ZIP" to download folders.');
       return;
     }
     const filePath = joinPosix(path, item.name);
-    const url = `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
-    triggerDownload(url, item.name);
+    triggerDownload(buildDownloadUrl(filePath), item.name);
     setCtxOpen(false);
   };
 
@@ -570,7 +584,7 @@ function ModeratorDisplay() {
 
     const ct = res.headers?.['content-type'] || 'application/octet-stream';
     const blob = new Blob([res.data], { type: ct });
-    return URL.createObjectURL(blob);
+    return { url: URL.createObjectURL(blob), type: ct };
   };
 
   /* ===== Preview ===== */
@@ -581,32 +595,112 @@ function ModeratorDisplay() {
     revokeObjectUrl();
 
     try {
-      if (isImg(item.name)) {
-        const url = await fetchBlobUrl(filePath);
+      // SVG
+      if (isSvg(item.name)) {
+        const { data } = await axios.get(`${API_BASE}/api/file/content`, {
+          params: { path: filePath, encoding: 'utf8' },
+          validateStatus: () => true,
+        });
+        if (!data?.ok) throw new Error(data?.error || 'Preview failed.');
+        const svgText = String(data.content || '');
+        const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(svgBlob);
         objectUrlRef.current = url;
-        setPreviewData({ type: 'image', url, text: '', name: item.name });
+        setPreviewData({
+          type: 'svg',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
         setPreviewOpen(true);
-      } else if (isPdf(item.name)) {
-        const url = await fetchBlobUrl(filePath);
+      }
+      // Image (non-SVG)
+      else if (isImg(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
         objectUrlRef.current = url;
-        setPreviewData({ type: 'pdf', url, text: '', name: item.name });
+        setPreviewData({
+          type: 'image',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
         setPreviewOpen(true);
-      } else if (isAud(item.name)) {
-        const url = await fetchBlobUrl(filePath);
+      }
+      // PDF
+      else if (isPdf(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
         objectUrlRef.current = url;
-        setPreviewData({ type: 'audio', url, text: '', name: item.name });
+        setPreviewData({
+          type: 'pdf',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
         setPreviewOpen(true);
-      } else if (isVid(item.name)) {
-        const url = await fetchBlobUrl(filePath);
+      }
+      // Audio
+      else if (isAud(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
         objectUrlRef.current = url;
-        setPreviewData({ type: 'video', url, text: '', name: item.name });
+        setPreviewData({
+          type: 'audio',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
         setPreviewOpen(true);
-      } else if (isHtml(item.name)) {
-        const url = await fetchBlobUrl(filePath);
+      }
+      // Video (native controls enabled for playback)
+      else if (isVid(item.name)) {
+        const { url, type } = await fetchBlobUrl(filePath);
         objectUrlRef.current = url;
-        setPreviewData({ type: 'iframe', url, text: '', name: item.name });
+        const mime =
+          type && type !== 'application/octet-stream'
+            ? type
+            : guessVideoMime(item.name);
+        setPreviewData({
+          type: 'video',
+          url,
+          text: '',
+          name: item.name,
+          mime,
+        });
         setPreviewOpen(true);
-      } else if (isTxt(item.name)) {
+      }
+      // HTML (sandboxed)
+      else if (isHtml(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
+        setPreviewData({
+          type: 'iframe',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+      }
+      // Office via Microsoft viewer
+      else if (isOffice(item.name)) {
+        const publicUrl = buildDownloadUrl(filePath);
+        const officeViewerUrl =
+          'https://view.officeapps.live.com/op/embed.aspx?src=' +
+          encodeURIComponent(publicUrl);
+        setPreviewData({
+          type: 'office',
+          url: officeViewerUrl,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+      }
+      // Text-like
+      else if (isTxt(item.name)) {
         const { data } = await axios.get(`${API_BASE}/api/file/content`, {
           params: { path: filePath, encoding: 'utf8' },
           validateStatus: () => true,
@@ -617,14 +711,13 @@ function ModeratorDisplay() {
           url: '',
           text: String(data.content || ''),
           name: item.name,
+          mime: '',
         });
         setPreviewOpen(true);
-      } else if (isOffice(item.name)) {
-        handleDownload(item);
-      } else {
-        const rawUrl = `${API_BASE}/api/download?path=${encodeURIComponent(
-          filePath
-        )}`;
+      }
+      // Fallback
+      else {
+        const rawUrl = buildDownloadUrl(filePath);
         window.open(rawUrl, '_blank', 'noopener,noreferrer');
       }
     } catch (err) {
@@ -687,6 +780,66 @@ function ModeratorDisplay() {
     });
   }, [visibleItems, path]);
 
+  /* ===== RENAME ===== */
+  const openRename = useCallback((item) => {
+    setCtxOpen(false);
+    setCtxTarget(item);
+    setRenameValue(item?.name || '');
+    setRenameOpen(true);
+  }, []);
+
+  const submitRename = useCallback(async () => {
+    if (!ctxTarget) return;
+    const newName = (renameValue || '').trim();
+
+    if (!newName) {
+      alert('Please enter a new name.');
+      return;
+    }
+    if (/[\\/]/.test(newName)) {
+      alert('Name cannot include slashes.');
+      return;
+    }
+    if (newName === ctxTarget.name) {
+      setRenameOpen(false);
+      return;
+    }
+
+    setWorking(true);
+    try {
+      const fromPath = joinPosix(path, ctxTarget.name);
+
+      if (ctxTarget.isDirectory) {
+        const toPath = joinPosix(path, newName);
+        const res = await axios.put(
+          `${API_BASE}/api/folder`,
+          { from: fromPath, to: toPath, overwrite: false },
+          { validateStatus: () => true }
+        );
+        if (!(res.status === 200 && res.data?.ok)) {
+          throw new Error(res.data?.error || 'Folder rename failed.');
+        }
+      } else {
+        const res = await axios.post(
+          `${API_BASE}/api/file/rename`,
+          { from: fromPath, newName, overwrite: false },
+          { validateStatus: () => true }
+        );
+        if (!(res.status === 200 && res.data?.ok)) {
+          throw new Error(res.data?.error || 'File rename failed.');
+        }
+      }
+
+      setRenameOpen(false);
+      setCtxTarget(null);
+      await fetchList();
+    } catch (err) {
+      alert(err?.message || 'Rename failed.');
+    } finally {
+      setWorking(false);
+    }
+  }, [ctxTarget, renameValue, path, fetchList]);
+
   /* ================= Render ================= */
   return (
     <div className="libd-root">
@@ -723,6 +876,7 @@ function ModeratorDisplay() {
                 name: path.split('/').filter(Boolean).pop() || 'moderator',
               }}
               onModeratorCreateFolder={fetchList}
+              onLibraryCreateFolder={fetchList}
               buttonVariant="outline-dark"
             />
             <button onClick={goUp} title="Up" className="libd-pill">
@@ -921,6 +1075,20 @@ function ModeratorDisplay() {
           onClose={() => setPreviewOpen(false)}
           title={previewData.name ? `Preview — ${previewData.name}` : 'Preview'}
         >
+          {/* SVG */}
+          {previewData.type === 'svg' && (
+            <div className="libd-preview-media">
+              <object
+                data={previewData.url}
+                type="image/svg+xml"
+                className="libd-preview-object"
+                aria-label="SVG preview"
+              >
+                <img src={previewData.url} alt="SVG preview" />
+              </object>
+            </div>
+          )}
+
           {previewData.type === 'image' && (
             <img
               src={previewData.url}
@@ -938,16 +1106,32 @@ function ModeratorDisplay() {
           )}
 
           {previewData.type === 'audio' && (
-            <audio controls className="libd-preview-audio">
+            <audio controls className="libd-preview-audio" preload="metadata">
               <source src={previewData.url} />
               Your browser does not support the audio element.
             </audio>
           )}
 
+          {/* ✅ Video preview with native controller (playback controls visible) */}
           {previewData.type === 'video' && (
-            <video controls className="libd-preview-media">
-              <source src={previewData.url} />
-              Your browser does not support the video element.
+            <video
+              key={previewData.url} /* force reload when URL changes */
+              controls /* show controller */
+              playsInline
+              preload="metadata"
+              className="libd-preview-video libd-preview-media"
+              style={{ pointerEvents: 'auto' }} /* ensure interactions work */
+              onError={() => {
+                try {
+                  window.open(previewData.url, '_blank', 'noopener,noreferrer');
+                } catch {}
+              }}
+            >
+              <source
+                src={previewData.url}
+                type={previewData.mime || 'video/mp4'}
+              />
+              Your browser does not support the video tag.
             </video>
           )}
 
@@ -957,6 +1141,15 @@ function ModeratorDisplay() {
               src={previewData.url}
               className="libd-preview-pdf"
               sandbox="allow-same-origin allow-forms allow-scripts"
+            />
+          )}
+
+          {/* Office Online viewer */}
+          {previewData.type === 'office' && (
+            <iframe
+              title="office"
+              src={previewData.url}
+              className="libd-preview-pdf"
             />
           )}
 
@@ -1024,41 +1217,6 @@ function ModeratorDisplay() {
       />
     </div>
   );
-
-  /* ===== Rename submit (defined after JSX for clarity) ===== */
-  async function submitRename() {
-    const item = ctxTarget;
-    const newName = (renameValue || '').trim();
-    if (!item || !newName || newName === item.name) {
-      setRenameOpen(false);
-      return;
-    }
-    setWorking(true);
-    try {
-      const from = joinPosix(path, item.name);
-      if (item.isDirectory) {
-        const to = joinPosix(path, newName);
-        const { data } = await axios.put(`${API_BASE}/api/folder`, {
-          from,
-          to,
-        });
-        if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
-      } else {
-        const { data } = await axios.post(`${API_BASE}/api/file/rename`, {
-          from,
-          newName,
-        });
-        if (!data?.ok) throw new Error(data?.error || 'Rename failed.');
-      }
-      setRenameOpen(false);
-      setCtxTarget(null);
-      fetchList();
-    } catch (err) {
-      alert(`Rename failed: ${err?.message || 'Unknown error'}`);
-    } finally {
-      setWorking(false);
-    }
-  }
 }
 
 ModeratorDisplay.propTypes = {};

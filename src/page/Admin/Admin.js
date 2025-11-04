@@ -11,8 +11,9 @@ function Admin() {
   return (
     <div>
       <Header></Header>
-      <AdminControls></AdminControls>
       <AdminDisplay></AdminDisplay>
+      <AdminControls></AdminControls>
+
       <Footer></Footer>
     </div>
   );

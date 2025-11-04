@@ -16,7 +16,7 @@ function ensureHttpBase(u) {
   return s.replace(/\/+$/, '');
 }
 const API_BASE = ensureHttpBase(
-  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+  process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my'
 );
 
 const RAW_OP_ROOT = process.env.REACT_APP_OPERATOR_START_PATH || '/operator';

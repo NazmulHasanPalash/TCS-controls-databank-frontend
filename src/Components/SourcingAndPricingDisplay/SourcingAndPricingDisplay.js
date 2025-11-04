@@ -25,7 +25,7 @@ function ensureHttpBase(u) {
   return s.replace(/\/+$/, '');
 }
 const API_BASE = ensureHttpBase(
-  process.env.REACT_APP_API_BASE || 'http://localhost:5000'
+  process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my'
 );
 
 const START_PATH =
@@ -76,11 +76,16 @@ const fmtDate = (d) => {
   }
 };
 
-const isImg = (n) => /\.(png|jpe?g|gif|webp|svg)$/i.test(n);
-const isTxt = (n) => /\.(txt|json|xml|csv|md|html|css|js)$/i.test(n);
+/* ---- file type helpers ---- */
+const isSvg = (n) => /\.svg$/i.test(n);
+const isImg = (n) => /\.(png|jpe?g|gif|webp|bmp|tiff?|ico|icns)$/i.test(n); // svg handled separately
+const isHtml = (n) => /\.html?$/i.test(n);
+const isTxt = (n) =>
+  /\.(txt|json|xml|csv|md|css|js|ts|tsx|jsx|yml|yaml|log)$/i.test(n);
 const isPdf = (n) => /\.pdf$/i.test(n);
-const isAud = (n) => /\.(mp3|wav|ogg)$/i.test(n);
-const isVid = (n) => /\.(mp4|webm|ogv|ogg)$/i.test(n);
+const isAud = (n) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(n);
+const isVid = (n) => /\.(mp4|m4v|webm|ogv|mov|mkv|3gp)$/i.test(n);
+const isOffice = (n) => /\.(docx?|xlsx?|pptx?)$/i.test(n);
 
 const sortItems = (items) =>
   [...items].sort((a, b) => {
@@ -107,6 +112,7 @@ const triggerDownload = (url, filename) => {
   a.href = url;
   if (filename) a.setAttribute('download', filename);
   a.target = '_blank';
+  a.rel = 'noopener noreferrer';
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -178,7 +184,7 @@ function ConfirmDeleteModal({ open, items, submitting, onCancel, onConfirm }) {
   if (!open) return null;
 
   const total = items.length;
-  const first = items[0];
+  const first = items[0] || { name: '', isDirectory: false };
   const title =
     total === 1
       ? `Delete ${first.isDirectory ? 'folder' : 'file'} "${first.name}"?`
@@ -234,7 +240,7 @@ ConfirmDeleteModal.propTypes = {
 };
 
 /* ================= Component ================= */
-function SourcingAndPricingDisplay({ defaultView }) {
+function SourcingAndPricingDisplay() {
   const [path, setPath] = useState(() => normalizePath(START_PATH));
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -257,9 +263,11 @@ function SourcingAndPricingDisplay({ defaultView }) {
   // Preview modal
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState({
-    type: 'text',
+    type: 'text', // image | pdf | audio | video | text | iframe | office | svg
     url: '',
     text: '',
+    name: '',
+    mime: '',
   });
 
   // Rename modal
@@ -307,34 +315,8 @@ function SourcingAndPricingDisplay({ defaultView }) {
 
   /* ===== Auto-fetch when path changes ===== */
   useEffect(() => {
-    const controller = new AbortController();
-    (async () => {
-      setLoading(true);
-      setErrorMsg('');
-      const res = await api.get(`/api/list`, {
-        params: { path },
-        signal: controller.signal,
-      });
-      if (res?.data?.ok) {
-        const normalized = (res.data.items || []).map((it) => ({
-          name: it.name,
-          size: it.size,
-          isDirectory: !!it.isDirectory,
-          modifiedAt: it.modifiedAt
-            ? new Date(it.modifiedAt)
-            : it.rawModifiedAt
-            ? new Date(it.rawModifiedAt)
-            : null,
-        }));
-        setItems(sortItems(normalized));
-        setFolderSizes({});
-      } else {
-        setErrorMsg(res?.data?.error || 'Failed to load.');
-      }
-      setLoading(false);
-    })();
-    return () => controller.abort();
-  }, [path]);
+    fetchList();
+  }, [fetchList]);
 
   /* ===== Lazy folder-size fetch ===== */
   useEffect(() => {
@@ -360,25 +342,26 @@ function SourcingAndPricingDisplay({ defaultView }) {
 
       const { full } = job;
 
-      let got = null;
-      const r1 = await api.get(`/api/size`, { params: { path: full } });
-      if (r1?.data?.ok && typeof r1.data.size === 'number') {
-        got = r1.data.size;
-      }
-      if (got == null) {
-        const r2 = await api.get(`/api/folder/size`, {
-          params: { path: full },
-        });
-        if (r2?.data?.ok && typeof r2.data.size === 'number') {
-          got = r2.data.size;
+      try {
+        let got = null;
+        const r1 = await api.get(`/api/size`, { params: { path: full } });
+        if (r1?.data?.ok && typeof r1.data.size === 'number')
+          got = r1.data.size;
+
+        if (got == null) {
+          const r2 = await api.get(`/api/folder/size`, {
+            params: { path: full },
+          });
+          if (r2?.data?.ok && typeof r2.data.size === 'number')
+            got = r2.data.size;
         }
-      }
 
-      if (!cancelled && got != null) {
-        setFolderSizes((prev) => ({ ...prev, [full]: got }));
+        if (!cancelled && got != null) {
+          setFolderSizes((prev) => ({ ...prev, [full]: got }));
+        }
+      } finally {
+        if (!cancelled && queue.length) runNext();
       }
-
-      if (!cancelled && queue.length) runNext();
     };
 
     for (let i = 0; i < Math.min(concurrency, queue.length); i++) runNext();
@@ -537,14 +520,16 @@ function SourcingAndPricingDisplay({ defaultView }) {
   };
 
   /* ===== File ops (single-item only) ===== */
+  const buildDownloadUrl = (filePath) =>
+    `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
+
   const handleDownload = (item) => {
     if (item.isDirectory) {
       alert('Use "Download as ZIP" to download folders.');
       return;
     }
     const filePath = joinPosix(path, item.name);
-    const url = `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
-    triggerDownload(url, item.name);
+    triggerDownload(buildDownloadUrl(filePath), item.name);
     setCtxOpen(false);
   };
 
@@ -561,7 +546,15 @@ function SourcingAndPricingDisplay({ defaultView }) {
     }
   };
 
-  /* ===== Rename ===== */
+  /* ===== Rename (fixed) ===== */
+  const isInvalidName = (name) => {
+    if (!name) return true;
+    if (name === '.' || name === '..') return true;
+    if (/[\\/]/.test(name)) return true; // no slashes/backslashes
+    if (/[\u0000-\u001F\u007F]/.test(name)) return true; // control chars
+    return false;
+  };
+
   const openRename = (item) => {
     setRenameValue(item?.name || '');
     setRenameOpen(true);
@@ -572,25 +565,36 @@ function SourcingAndPricingDisplay({ defaultView }) {
   const submitRename = async () => {
     const item = ctxTarget;
     const newName = (renameValue || '').trim();
-    if (!item || !newName || newName === item.name) {
+    if (!item) return;
+
+    if (!newName || newName === item.name) {
       setRenameOpen(false);
       return;
     }
+    if (isInvalidName(newName)) {
+      alert(
+        'Invalid name. Avoid slashes/backslashes, "." or "..", and control characters.'
+      );
+      return;
+    }
+
     setWorking(true);
     const from = joinPosix(path, item.name);
+    const to = joinPosix(path, newName);
     let res;
+
     if (item.isDirectory) {
-      const to = joinPosix(path, newName);
-      res = await api.put(`/api/folder`, { from, to });
+      res = await api.put(`/api/folder`, { from, to, overwrite: false });
     } else {
-      res = await api.post(`/api/file/rename`, { from, newName });
+      res = await api.post(`/api/file/rename`, { from, to, overwrite: false });
     }
+
     if (!res?.data?.ok) {
       alert(`Rename failed: ${res?.data?.error || 'Unknown error'}`);
     } else {
       setRenameOpen(false);
       setCtxTarget(null);
-      fetchList();
+      await fetchList();
     }
     setWorking(false);
   };
@@ -599,53 +603,134 @@ function SourcingAndPricingDisplay({ defaultView }) {
   const handlePreview = async (item) => {
     if (item.isDirectory) return;
     const filePath = joinPosix(path, item.name);
-    const url = `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
 
-    if (isImg(item.name)) {
-      setPreviewData({ type: 'image', url, text: '' });
-      setPreviewOpen(true);
-      setCtxOpen(false);
-      return;
-    }
-    if (isPdf(item.name)) {
-      setPreviewData({ type: 'pdf', url, text: '' });
-      setPreviewOpen(true);
-      setCtxOpen(false);
-      return;
-    }
-    if (isAud(item.name)) {
-      setPreviewData({ type: 'audio', url, text: '' });
-      setPreviewOpen(true);
-      setCtxOpen(false);
-      return;
-    }
-    if (isVid(item.name)) {
-      setPreviewData({ type: 'video', url, text: '' });
-      setPreviewOpen(true);
-      setCtxOpen(false);
-      return;
-    }
-    if (isTxt(item.name)) {
-      const res = await api.get(`/api/file/content`, {
-        params: { path: filePath, encoding: 'utf8' },
-      });
-      if (!res?.data?.ok) {
-        alert(`Preview failed: ${res?.data?.error || 'Unknown error'}`);
-      } else {
+    try {
+      // SVG text -> blob for safe preview
+      if (isSvg(item.name)) {
+        const res = await api.get(`/api/file/content`, {
+          params: { path: filePath, encoding: 'utf8' },
+        });
+        if (!res?.data?.ok)
+          throw new Error(res?.data?.error || 'Preview failed.');
+        const svgText = String(res.data.content || '');
+        const blob = new Blob([svgText], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
         setPreviewData({
-          type: 'text',
-          url: '',
-          text: String(res.data.content || ''),
+          type: 'svg',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
         });
         setPreviewOpen(true);
+        setCtxOpen(false);
+        return;
       }
-      setCtxOpen(false);
-      return;
-    }
 
-    // Fallback: download
-    handleDownload(item);
-    setCtxOpen(false);
+      const url = buildDownloadUrl(filePath);
+
+      if (isImg(item.name)) {
+        setPreviewData({
+          type: 'image',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+        setCtxOpen(false);
+        return;
+      }
+      if (isPdf(item.name)) {
+        setPreviewData({
+          type: 'pdf',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+        setCtxOpen(false);
+        return;
+      }
+      if (isAud(item.name)) {
+        setPreviewData({
+          type: 'audio',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+        setCtxOpen(false);
+        return;
+      }
+      if (isVid(item.name)) {
+        setPreviewData({
+          type: 'video',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+        setCtxOpen(false);
+        return;
+      }
+      if (isHtml(item.name)) {
+        setPreviewData({
+          type: 'iframe',
+          url,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+        setCtxOpen(false);
+        return;
+      }
+      if (isOffice(item.name)) {
+        const officeViewerUrl =
+          'https://view.officeapps.live.com/op/embed.aspx?src=' +
+          encodeURIComponent(url);
+        setPreviewData({
+          type: 'office',
+          url: officeViewerUrl,
+          text: '',
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
+        setCtxOpen(false);
+        return;
+      }
+      if (isTxt(item.name)) {
+        const res = await api.get(`/api/file/content`, {
+          params: { path: filePath, encoding: 'utf8' },
+        });
+        if (!res?.data?.ok) {
+          alert(`Preview failed: ${res?.data?.error || 'Unknown error'}`);
+        } else {
+          setPreviewData({
+            type: 'text',
+            url: '',
+            text: String(res.data.content || ''),
+            name: item.name,
+            mime: '',
+          });
+          setPreviewOpen(true);
+        }
+        setCtxOpen(false);
+        return;
+      }
+
+      // Fallback: download
+      handleDownload(item);
+      setCtxOpen(false);
+    } catch (err) {
+      alert(`Preview failed: ${err?.message || 'Unknown error'}`);
+      setCtxOpen(false);
+    }
   };
 
   // Minimal folder obj for CreateFolder component (it reads fullPath/name)
@@ -723,7 +808,7 @@ function SourcingAndPricingDisplay({ defaultView }) {
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            justifyContent: 'flex-end', // ⬅️ buttons right
+            justifyContent: 'flex-end',
             flexWrap: 'wrap',
             marginBottom: 8,
           }}
@@ -737,6 +822,7 @@ function SourcingAndPricingDisplay({ defaultView }) {
               currentPath={path}
               onFolderUploaded={fetchList}
             />
+            {/* 🔧 Ensure auto-refresh after creating a folder */}
             <SourcingAndPricingCreateFolder
               currentFolder={currentFolderObj}
               onLibraryCreateFolder={fetchList}
@@ -943,7 +1029,24 @@ function SourcingAndPricingDisplay({ defaultView }) {
 
       {/* Preview Modal */}
       {previewOpen && (
-        <Modal onClose={() => setPreviewOpen(false)} title="Preview">
+        <Modal
+          onClose={() => setPreviewOpen(false)}
+          title={previewData.name ? `Preview — ${previewData.name}` : 'Preview'}
+        >
+          {/* SVG */}
+          {previewData.type === 'svg' && (
+            <div className="libd-preview-media">
+              <object
+                data={previewData.url}
+                type="image/svg+xml"
+                className="libd-preview-object"
+                aria-label="SVG preview"
+              >
+                <img src={previewData.url} alt="SVG preview" />
+              </object>
+            </div>
+          )}
+
           {previewData.type === 'image' && (
             <img
               src={previewData.url}
@@ -951,6 +1054,7 @@ function SourcingAndPricingDisplay({ defaultView }) {
               className="libd-preview-media"
             />
           )}
+
           {previewData.type === 'pdf' && (
             <iframe
               title="pdf"
@@ -958,18 +1062,38 @@ function SourcingAndPricingDisplay({ defaultView }) {
               className="libd-preview-pdf"
             />
           )}
+
           {previewData.type === 'audio' && (
             <audio controls className="libd-preview-audio">
               <source src={previewData.url} />
               Your browser does not support the audio element.
             </audio>
           )}
+
           {previewData.type === 'video' && (
-            <video controls className="libd-preview-media">
+            <video controls className="libd-preview-media" playsInline>
               <source src={previewData.url} />
               Your browser does not support the video element.
             </video>
           )}
+
+          {previewData.type === 'iframe' && (
+            <iframe
+              title="html"
+              src={previewData.url}
+              className="libd-preview-pdf"
+              sandbox="allow-same-origin allow-forms allow-scripts"
+            />
+          )}
+
+          {previewData.type === 'office' && (
+            <iframe
+              title="office"
+              src={previewData.url}
+              className="libd-preview-pdf"
+            />
+          )}
+
           {previewData.type === 'text' && (
             <pre className="libd-preview-text">{previewData.text}</pre>
           )}

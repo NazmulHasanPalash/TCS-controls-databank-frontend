@@ -8,7 +8,7 @@ import { faFileAlt, faTimes } from '@fortawesome/free-solid-svg-icons';
 import './LibraryCreateFile.css';
 
 // Your Node/Express API base
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'https://databank.tcscontrols.com.my';
 
 const ALLOWED_EXTENSIONS = new Set([
   'html',

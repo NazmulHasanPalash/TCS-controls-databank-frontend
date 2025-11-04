@@ -9,7 +9,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import './ModeratorCreateFolder.css';
 
 /* ======================== Config ======================== */
-const RAW_API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+const RAW_API_BASE =
+  process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my';
 const MOD_BASE =
   process.env.REACT_APP_MODERATOR_START_PATH ||
   process.env.REACT_APP_MOD_BASE ||

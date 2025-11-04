@@ -9,7 +9,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import './AdminCreateFolder.css';
 
 /* ======================== Config ======================== */
-const RAW_API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+const RAW_API_BASE =
+  process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my';
 const ADMIN_BASE = process.env.REACT_APP_ADMIN_BASE || '/admin';
 
 /** Ensure API base has scheme and no trailing slash */
