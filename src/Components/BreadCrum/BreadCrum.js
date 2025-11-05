@@ -2,6 +2,7 @@
 import React, { useMemo, memo } from 'react';
 import PropTypes from 'prop-types';
 import './BreadCrum.css';
+import { HashLink } from 'react-router-hash-link';
 
 /** Default roots; now includes Administrative, Customer Order, Moderator, Operator, and Admin */
 const DEFAULT_ROOTS = [
@@ -125,7 +126,11 @@ function BreadCrum({
       aria-label="BreadCrum"
       title={title}
     >
-      <strong className="bc-label">Path:</strong>
+      <strong className="bc-label">
+        <HashLink className="nav-link active text-primary" to="/home#home">
+          Home:
+        </HashLink>
+      </strong>
       <ol className="bc-list">
         {crumbs.map((c, idx) => {
           const isCurrent = idx === crumbs.length - 1;

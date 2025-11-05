@@ -87,6 +87,17 @@ const isAud = (n) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(n);
 const isVid = (n) => /\.(mp4|m4v|webm|ogv|mov|mkv|3gp)$/i.test(n);
 const isOffice = (n) => /\.(docx?|xlsx?|pptx?)$/i.test(n);
 
+/* --- Video MIME guesser for correct <source type="..."> --- */
+const guessVideoMime = (name, fallback = 'video/mp4') => {
+  if (/\.mp4$/i.test(name) || /\.m4v$/i.test(name)) return 'video/mp4';
+  if (/\.webm$/i.test(name)) return 'video/webm';
+  if (/\.ogv$/i.test(name)) return 'video/ogg';
+  if (/\.mov$/i.test(name)) return 'video/quicktime';
+  if (/\.mkv$/i.test(name)) return 'video/x-matroska';
+  if (/\.3gp$/i.test(name)) return 'video/3gpp';
+  return fallback;
+};
+
 const sortItems = (items) =>
   [...items].sort((a, b) => {
     const da = a.isDirectory ? 0 : 1;
@@ -671,7 +682,7 @@ function SourcingAndPricingDisplay() {
           url,
           text: '',
           name: item.name,
-          mime: '',
+          mime: guessVideoMime(item.name),
         });
         setPreviewOpen(true);
         setCtxOpen(false);
@@ -1064,15 +1075,31 @@ function SourcingAndPricingDisplay() {
           )}
 
           {previewData.type === 'audio' && (
-            <audio controls className="libd-preview-audio">
+            <audio controls className="libd-preview-audio" preload="metadata">
               <source src={previewData.url} />
               Your browser does not support the audio element.
             </audio>
           )}
 
+          {/* ✅ Fixed video preview */}
           {previewData.type === 'video' && (
-            <video controls className="libd-preview-media" playsInline>
-              <source src={previewData.url} />
+            <video
+              key={previewData.url} /* force reload when URL changes */
+              controls
+              playsInline
+              preload="metadata"
+              className="libd-preview-media"
+              style={{ pointerEvents: 'auto' }}
+              onError={() => {
+                try {
+                  window.open(previewData.url, '_blank', 'noopener,noreferrer');
+                } catch {}
+              }}
+            >
+              <source
+                src={previewData.url}
+                type={previewData.mime || 'video/mp4'}
+              />
               Your browser does not support the video element.
             </video>
           )}

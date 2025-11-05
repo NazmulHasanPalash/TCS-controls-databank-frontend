@@ -462,6 +462,9 @@ function OperatorDisplay() {
   /* ===== File ops (single-item) ===== */
   const buildDownloadUrl = (filePath) =>
     `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
+  // Prefer streaming (supports HTTP Range & seeking) for video preview
+  const buildStreamUrl = (filePath) =>
+    `${API_BASE}/api/stream?path=${encodeURIComponent(filePath)}`;
 
   const handleDownload = (item) => {
     if (item.isDirectory) {
@@ -654,20 +657,15 @@ function OperatorDisplay() {
         });
         setPreviewOpen(true);
       }
-      // Video (native controls enabled for playback)
+      // VIDEO — use streaming URL (no blob) to enable seeking and instant play
       else if (isVid(item.name)) {
-        const { url, type } = await fetchBlobUrl(filePath);
-        objectUrlRef.current = url;
-        const mime =
-          type && type !== 'application/octet-stream'
-            ? type
-            : guessVideoMime(item.name);
+        const streamUrl = buildStreamUrl(filePath);
         setPreviewData({
           type: 'video',
-          url,
+          url: streamUrl,
           text: '',
           name: item.name,
-          mime,
+          mime: guessVideoMime(item.name),
         });
         setPreviewOpen(true);
       }
@@ -1109,15 +1107,15 @@ function OperatorDisplay() {
             </audio>
           )}
 
-          {/* ✅ Video preview with native controller (playback controls visible) */}
+          {/* ✅ Video preview with native controller (HTTP Range via stream URL) */}
           {previewData.type === 'video' && (
             <video
               key={previewData.url} /* force reload when URL changes */
-              controls /* show controller */
+              controls
               playsInline
               preload="metadata"
               className="libd-preview-video libd-preview-media"
-              style={{ pointerEvents: 'auto' }} /* ensure interactions work */
+              style={{ pointerEvents: 'auto' }}
               onError={() => {
                 try {
                   window.open(previewData.url, '_blank', 'noopener,noreferrer');

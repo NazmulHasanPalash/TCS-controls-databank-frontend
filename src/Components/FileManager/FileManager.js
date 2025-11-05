@@ -69,7 +69,7 @@ function FileManager() {
                   size="3x"
                   className="text-primary mb-3"
                 />
-                <h5 className="card-title">Storico</h5>
+                <h5 className="card-title">Space UP-1</h5>
               </div>
             </div>
           </div>
@@ -84,7 +84,7 @@ function FileManager() {
                   size="3x"
                   className="text-primary mb-3"
                 />
-                <h5 className="card-title">Space UP</h5>
+                <h5 className="card-title">Space UP-2</h5>
               </div>
             </div>
           </div>

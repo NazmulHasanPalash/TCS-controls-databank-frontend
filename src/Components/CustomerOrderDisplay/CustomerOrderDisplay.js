@@ -99,6 +99,7 @@ const sortItems = (items) =>
     });
   });
 
+/** Ensure navigation cannot go above START_PATH */
 const clampToBase = (targetPath) => {
   const base = normalizePath(START_PATH);
   if (!targetPath) return base;
@@ -107,6 +108,7 @@ const clampToBase = (targetPath) => {
   return normalized.startsWith(base) ? normalized : base;
 };
 
+/** Trigger a browser download */
 const triggerDownload = (url, filename) => {
   const a = document.createElement('a');
   a.href = url;
@@ -462,6 +464,10 @@ function CustomerOrderDisplay() {
   const buildDownloadUrl = (filePath) =>
     `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
 
+  // ✅ Stream endpoint for videos to support HTTP Range requests (seeking)
+  const buildStreamUrl = (filePath) =>
+    `${API_BASE}/api/stream?path=${encodeURIComponent(filePath)}`;
+
   const handleDownload = (item) => {
     if (item.isDirectory) {
       alert('Use "Download as ZIP" to download folders.');
@@ -653,20 +659,15 @@ function CustomerOrderDisplay() {
         });
         setPreviewOpen(true);
       }
-      // Video (native controls enabled for playback)
+      // ✅ VIDEO — use streaming URL to enable seeking/fast start (no blob)
       else if (isVid(item.name)) {
-        const { url, type } = await fetchBlobUrl(filePath);
-        objectUrlRef.current = url;
-        const mime =
-          type && type !== 'application/octet-stream'
-            ? type
-            : guessVideoMime(item.name);
+        const streamUrl = buildStreamUrl(filePath);
         setPreviewData({
           type: 'video',
-          url,
+          url: streamUrl,
           text: '',
           name: item.name,
-          mime,
+          mime: guessVideoMime(item.name),
         });
         setPreviewOpen(true);
       }
@@ -1110,15 +1111,15 @@ function CustomerOrderDisplay() {
             </audio>
           )}
 
-          {/* ✅ Video preview with native controller (playback controls visible) */}
+          {/* ✅ Video preview with streaming URL for Range/seek + always-visible controls */}
           {previewData.type === 'video' && (
             <video
-              key={previewData.url} /* force reload when URL changes */
-              controls /* show controller */
+              key={previewData.url}
+              controls
               playsInline
               preload="metadata"
               className="libd-preview-video libd-preview-media"
-              style={{ pointerEvents: 'auto' }} /* ensure interactions work */
+              style={{ pointerEvents: 'auto' }}
               onError={() => {
                 try {
                   window.open(previewData.url, '_blank', 'noopener,noreferrer');

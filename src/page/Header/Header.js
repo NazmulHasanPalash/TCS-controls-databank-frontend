@@ -162,16 +162,6 @@ const Header = () => {
                   </li>
 
                   {/* Role sections */}
-                  {canSeeModeratorLink && (
-                    <li className="nav-item">
-                      <HashLink
-                        className="nav-link active header-text-style"
-                        to="/moderator"
-                      >
-                        Moderator
-                      </HashLink>
-                    </li>
-                  )}
 
                   {canSeeOperatorLink && (
                     <li className="nav-item">
@@ -180,6 +170,16 @@ const Header = () => {
                         to="/operator"
                       >
                         Operator
+                      </HashLink>
+                    </li>
+                  )}
+                  {canSeeModeratorLink && (
+                    <li className="nav-item">
+                      <HashLink
+                        className="nav-link active header-text-style"
+                        to="/moderator"
+                      >
+                        Moderator
                       </HashLink>
                     </li>
                   )}
