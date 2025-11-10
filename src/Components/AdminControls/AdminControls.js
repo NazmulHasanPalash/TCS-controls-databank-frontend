@@ -8,7 +8,8 @@ import ApiDefault, { api as apiNamed } from '../Api/Api';
 
 const api = apiNamed || ApiDefault;
 
-const ROLES = ['operator', 'moderator', 'admin'];
+// Include 'user' so operator and user are distinct & selectable.
+const ROLES = ['user', 'operator', 'moderator', 'admin'];
 
 function fmtDate(x) {
   if (!x) return '—';
@@ -40,6 +41,7 @@ async function apiPost(url, payload) {
   return res?.data ?? res;
 }
 async function apiDelete(url, data) {
+  // axios.delete(url, { data }) shape is supported
   const res = await api.delete(url, data ? { data } : undefined);
   return res?.data ?? res;
 }
@@ -47,7 +49,8 @@ async function apiDelete(url, data) {
 export default function AdminControls() {
   const [email, setEmail] = React.useState('');
   const [name, setName] = React.useState('');
-  const [role, setRole] = React.useState('admin');
+  // Safer default than 'admin'
+  const [role, setRole] = React.useState('operator');
   const [updatedAt, setUpdatedAt] = React.useState(null);
 
   const [busy, setBusy] = React.useState(false);
@@ -138,7 +141,8 @@ export default function AdminControls() {
       if (opts.reset) {
         setEmail('');
         setName('');
-        setRole('admin');
+        // Reset back to safer default instead of admin
+        setRole('operator');
         setUpdatedAt(null);
       }
     } catch (err) {
