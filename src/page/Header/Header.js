@@ -7,38 +7,42 @@ import useAuthRole from '../../Components/Hooks/useAuthRole'; // role & user sta
 import useFirebase from '../../Components/Hooks/useFirebase'; // logout helper
 
 const Header = () => {
-  // Safely read role state; provide hard defaults so UI never crashes
+  // Safely read auth/role state; provide defaults so UI never crashes
   const {
     user = null,
     isLoading = false,
+    role: rawRole = 'new_register',
     isAdmin: rawIsAdmin = false,
     isModerator: rawIsModerator = false,
     isOperator: rawIsOperator = false,
+    isUser: rawIsUser = false,
   } = (function safeUseAuthRole() {
     try {
-      return useAuthRole?.() || {};
+      return (typeof useAuthRole === 'function' ? useAuthRole() : {}) || {};
     } catch {
       return {};
     }
   })();
 
-  // Normalize: only literal boolean true counts
+  // Normalize flags
+  const role =
+    typeof rawRole === 'string' ? rawRole.toLowerCase() : 'new_register';
   const isAdmin = rawIsAdmin === true;
   const isModerator = rawIsModerator === true;
   const isOperator = rawIsOperator === true;
+  const isUser = rawIsUser === true || role === 'user';
 
-  // 🔐 Visibility rules:
-  // - Users (no role) CANNOT see Operator
-  // - Operators CAN see Users (plus Admins can too)
+  // 🔐 Visibility rules
   const canSeeAdminLink = isAdmin;
-  const canSeeModeratorLink = isModerator || isAdmin; // admin inherits moderator
-  const canSeeOperatorLink = isOperator || isModerator || isAdmin; // exclude plain users
-  const canSeeUsersLink = isAdmin || isOperator; // ✅ operators (and admins) can see Users
+  const canSeeModeratorLink = isModerator || isAdmin;
+  const canSeeOperatorLink = isOperator || isModerator || isAdmin;
+  // ⛔ Hide File manager for new_register
+  const canSeeFileManager = isUser || isOperator || isModerator || isAdmin;
 
   // Logout
   const { logOut } = (function safeUseFirebase() {
     try {
-      return useFirebase?.() || {};
+      return (typeof useFirebase === 'function' ? useFirebase() : {}) || {};
     } catch {
       return {};
     }
@@ -76,8 +80,8 @@ const Header = () => {
               <span className="span-style text-primary icon-style">
                 <img
                   className="second-icon img-fluid"
-                  src="image/img/tcscontrols.svg"
-                  alt="TCS Controls"
+                  src="image/img/tcscontrols.png"
+                  alt="tcscontrols.png"
                 />
               </span>
             </HashLink>
@@ -95,74 +99,75 @@ const Header = () => {
                     </HashLink>
                   </li>
 
-                  {/* File Manager (always for signed-in users) */}
-                  <li className="nav-item dropdown">
-                    <button
-                      className="btn header-text-style dropdown-toggle active"
-                      id="fileManagerMenu"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                      type="button"
-                    >
-                      File manager
-                    </button>
-                    <ul
-                      className="dropdown-menu text-color w-100"
-                      aria-labelledby="fileManagerMenu"
-                    >
-                      <li>
-                        <HashLink
-                          className="nav-link active dropdown-text-style"
-                          to="/files/library"
-                        >
-                          Library
-                        </HashLink>
-                      </li>
-                      <li>
-                        <HashLink
-                          className="nav-link active dropdown-text-style"
-                          to="/files/sourcingAndPricing"
-                        >
-                          Sourcing and Pricing
-                        </HashLink>
-                      </li>
-                      <li>
-                        <HashLink
-                          className="nav-link active dropdown-text-style"
-                          to="/files/administrative"
-                        >
-                          Administrative
-                        </HashLink>
-                      </li>
-                      <li>
-                        <HashLink
-                          className="nav-link active dropdown-text-style"
-                          to="/files/customerOrder"
-                        >
-                          Customer Order
-                        </HashLink>
-                      </li>
-                      <li>
-                        <HashLink
-                          className="nav-link active dropdown-text-style"
-                          to="/files/spaceUp1"
-                        >
-                          Space UP-1
-                        </HashLink>
-                      </li>
-                      <li>
-                        <HashLink
-                          className="nav-link active dropdown-text-style"
-                          to="/files/spaceUp2"
-                        >
-                          Space UP-2
-                        </HashLink>
-                      </li>
-                    </ul>
-                  </li>
+                  {/* File Manager — only for user/operator/moderator/admin */}
+                  {canSeeFileManager && (
+                    <li className="nav-item dropdown">
+                      <button
+                        className="btn header-text-style dropdown-toggle active"
+                        id="fileManagerMenu"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        type="button"
+                      >
+                        File manager
+                      </button>
+                      <ul
+                        className="dropdown-menu text-color w-100"
+                        aria-labelledby="fileManagerMenu"
+                      >
+                        <li>
+                          <HashLink
+                            className="nav-link active dropdown-text-style"
+                            to="/files/library"
+                          >
+                            Library
+                          </HashLink>
+                        </li>
+                        <li>
+                          <HashLink
+                            className="nav-link active dropdown-text-style"
+                            to="/files/sourcingAndPricing"
+                          >
+                            Sourcing and Pricing
+                          </HashLink>
+                        </li>
+                        <li>
+                          <HashLink
+                            className="nav-link active dropdown-text-style"
+                            to="/files/administrative"
+                          >
+                            Administrative
+                          </HashLink>
+                        </li>
+                        <li>
+                          <HashLink
+                            className="nav-link active dropdown-text-style"
+                            to="/files/customerOrder"
+                          >
+                            Customer Order
+                          </HashLink>
+                        </li>
+                        <li>
+                          <HashLink
+                            className="nav-link active dropdown-text-style"
+                            to="/files/spaceUp1"
+                          >
+                            Space UP-1
+                          </HashLink>
+                        </li>
+                        <li>
+                          <HashLink
+                            className="nav-link active dropdown-text-style"
+                            to="/files/spaceUp2"
+                          >
+                            Space UP-2
+                          </HashLink>
+                        </li>
+                      </ul>
+                    </li>
+                  )}
 
                   {/* Role sections */}
-
                   {canSeeOperatorLink && (
                     <li className="nav-item">
                       <HashLink
@@ -184,7 +189,7 @@ const Header = () => {
                     </li>
                   )}
 
-                  {/* Admin / Users area */}
+                  {/* Admin area */}
                   {canSeeAdminLink && (
                     <li className="nav-item">
                       <HashLink

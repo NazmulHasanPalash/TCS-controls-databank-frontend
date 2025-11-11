@@ -24,6 +24,7 @@ import Admin from './page/Admin/Admin';
 import AdminRouter from './Components/AdminRouter/AdminRouter';
 import ModeratorRouter from './Components/ModeratorRouter/ModeratorRouter';
 import OperatorRouter from './Components/OperatorRouter/OperatorRouter';
+import UserRouter from './Components/UserRouter/UserRouter';
 
 function App() {
   return (
@@ -45,24 +46,24 @@ function App() {
             </PrivateRouter>
 
             {/* File manager sections (any signed-in user) */}
-            <PrivateRouter exact path="/files/library">
+            <UserRouter exact path="/files/library">
               <Library />
-            </PrivateRouter>
-            <PrivateRouter exact path="/files/sourcingAndPricing">
+            </UserRouter>
+            <UserRouter exact path="/files/sourcingAndPricing">
               <SourcingAndPricing />
-            </PrivateRouter>
-            <PrivateRouter exact path="/files/administrative">
+            </UserRouter>
+            <UserRouter exact path="/files/administrative">
               <Administrative />
-            </PrivateRouter>
-            <PrivateRouter exact path="/files/customerOrder">
+            </UserRouter>
+            <UserRouter exact path="/files/customerOrder">
               <CustomerOrder />
-            </PrivateRouter>
-            <PrivateRouter exact path="/files/spaceUp1">
+            </UserRouter>
+            <UserRouter exact path="/files/spaceUp1">
               <Storico />
-            </PrivateRouter>
-            <PrivateRouter exact path="/files/spaceUp2">
+            </UserRouter>
+            <UserRouter exact path="/files/spaceUp2">
               <SpaceUp />
-            </PrivateRouter>
+            </UserRouter>
 
             {/* Role-guarded sections */}
             <ModeratorRouter exact path="/moderator">

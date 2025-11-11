@@ -8,8 +8,16 @@ import ApiDefault, { api as apiNamed } from '../Api/Api';
 
 const api = apiNamed || ApiDefault;
 
-// Include 'user' so operator and user are distinct & selectable.
-const ROLES = ['user', 'operator', 'moderator', 'admin'];
+// Must match server ALLOWED_ROLES:
+// ['new_register','user','associate','operator','moderator','admin']
+const ROLES = [
+  'new_register',
+  'user',
+  'associate',
+  'operator',
+  'moderator',
+  'admin',
+];
 
 function fmtDate(x) {
   if (!x) return '—';
@@ -26,12 +34,17 @@ function fmtDate(x) {
   return '—';
 }
 
-function RolePill({ value }) {
+function prettyRole(value) {
   const v = String(value || '').toLowerCase();
-  return <span className={`pill pill--${v}`}>{v || '—'}</span>;
+  return v || '—'; // keep exact backend spelling like "new_register"
 }
 
-// Normalize .data vs raw
+function RolePill({ value }) {
+  const v = String(value || '').toLowerCase();
+  return <span className={`pill pill--${v}`}>{prettyRole(v)}</span>;
+}
+
+// Normalize .data vs raw axios responses
 async function apiGet(url, config) {
   const res = await api.get(url, config);
   return res?.data ?? res;
@@ -41,7 +54,6 @@ async function apiPost(url, payload) {
   return res?.data ?? res;
 }
 async function apiDelete(url, data) {
-  // axios.delete(url, { data }) shape is supported
   const res = await api.delete(url, data ? { data } : undefined);
   return res?.data ?? res;
 }
@@ -49,8 +61,8 @@ async function apiDelete(url, data) {
 export default function AdminControls() {
   const [email, setEmail] = React.useState('');
   const [name, setName] = React.useState('');
-  // Safer default than 'admin'
-  const [role, setRole] = React.useState('operator');
+  // Safer default than admin/operator
+  const [role, setRole] = React.useState('user');
   const [updatedAt, setUpdatedAt] = React.useState(null);
 
   const [busy, setBusy] = React.useState(false);
@@ -141,8 +153,7 @@ export default function AdminControls() {
       if (opts.reset) {
         setEmail('');
         setName('');
-        // Reset back to safer default instead of admin
-        setRole('operator');
+        setRole('user'); // reset to safe default
         setUpdatedAt(null);
       }
     } catch (err) {
@@ -263,7 +274,7 @@ export default function AdminControls() {
             >
               {ROLES.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {prettyRole(r)}
                 </option>
               ))}
             </select>

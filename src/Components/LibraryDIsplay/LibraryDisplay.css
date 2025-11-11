@@ -108,6 +108,12 @@
   background: #cfe2ff;
   color: #084298;
 }
+/* Success variant (used by folder upload) */
+.libd-alert-success {
+  border: 1px solid #badbcc;
+  background: #d1e7dd;
+  color: #0f5132;
+}
 
 /* ===============================
    Table
@@ -160,6 +166,19 @@
 }
 .libd-muted {
   color: #475569;
+}
+
+/* Scrollable table body (used by .libd-tbody-scroll in JSX) */
+.libd-tbody-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Slight checkbox alignment polish */
+.libd-thead input[type='checkbox'],
+.libd-row input[type='checkbox'] {
+  transform: translateY(1px);
 }
 
 /* Empty state centered */
@@ -288,7 +307,6 @@
   border-radius: 8px;
   background: transparent; /* was white */
 }
-
 .libd-preview-pdf {
   width: 100%;
   height: 70vh;
@@ -296,12 +314,10 @@
   border-radius: 8px;
   background: transparent; /* was #0b1020 */
 }
-
 .libd-preview-audio {
   width: 100%;
   background: transparent;
 }
-
 .libd-preview-text {
   background: transparent; /* was white */
   color: inherit; /* was black */
@@ -314,6 +330,12 @@
     'Liberation Mono', monospace;
   font-size: 13px;
   line-height: 1.45;
+}
+/* Ensure <object> for SVG fills the space, as used in JSX */
+.libd-preview-object {
+  width: 100%;
+  height: 70vh;
+  border: none;
 }
 
 /* ===============================
@@ -374,6 +396,10 @@
   border-color: #93c5fd;
   box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.35);
 }
+/* Search input variant used in toolbar */
+.libd-input-search {
+  width: min(360px, 90vw);
+}
 
 .libd-modal-actions {
   margin-top: 12px;
@@ -383,6 +409,27 @@
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+/* ===============================
+   Confirm Delete (nice-to-have styles)
+   =============================== */
+.libd-confirm-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.libd-confirm-list {
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px 0;
+}
+.libd-confirm-item {
+  padding: 2px 0;
+  color: #0f172a;
+}
+.libd-muted.small {
+  font-size: 12px;
+  color: #64748b;
 }
 
 /* ===============================

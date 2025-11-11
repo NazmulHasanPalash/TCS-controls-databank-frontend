@@ -1,24 +1,26 @@
 // src/hooks/useAuthRole.js
 // Watches Firebase Auth; reads Firestore users/{uid}.role; exposes helpers.
+// Default (lowest) role is "new_register".
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../Firebase/firebase.init'; // keep your exact path/casing
 
-// ↓ Add "user" as the lowest role
-const ROLE_ORDER = ['user', 'operator', 'moderator', 'admin'];
+// Lowest → Highest
+const ROLE_ORDER = ['new_register', 'user', 'operator', 'moderator', 'admin'];
 
 function normalizeRole(value) {
   const v = String(value || '')
     .trim()
     .toLowerCase();
-  return ROLE_ORDER.includes(v) ? v : 'user'; // default to user (not operator)
+  // Fallback to lowest role if missing/unknown
+  return ROLE_ORDER.includes(v) ? v : 'new_register';
 }
 
 export function useAuthRole() {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState('user'); // default now "user"
+  const [role, setRole] = useState('new_register'); // default baseline
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -31,10 +33,11 @@ export function useAuthRole() {
   );
 
   // Exact-role flags
-  const isAdmin = useMemo(() => role === 'admin', [role]);
-  const isModerator = useMemo(() => role === 'moderator', [role]);
-  const isOperator = useMemo(() => role === 'operator', [role]);
+  const isNewRegister = useMemo(() => role === 'new_register', [role]);
   const isUser = useMemo(() => role === 'user', [role]);
+  const isOperator = useMemo(() => role === 'operator', [role]);
+  const isModerator = useMemo(() => role === 'moderator', [role]);
+  const isAdmin = useMemo(() => role === 'admin', [role]);
 
   // Inclusive helpers
   const isOperatorPlus = useMemo(() => gte(role, 'operator'), [gte, role]); // operator | moderator | admin
@@ -46,15 +49,16 @@ export function useAuthRole() {
     try {
       setError('');
       if (!uid) {
-        setRole('user');
+        setRole('new_register');
         return;
       }
       const ref = doc(db, 'users', uid);
       const snap = await getDoc(ref);
       const raw = snap.exists() ? snap.data()?.role : undefined;
-      setRole(normalizeRole(raw)); // user | operator | moderator | admin
+      setRole(normalizeRole(raw)); // new_register | user | operator | moderator | admin
     } catch (e) {
-      setRole('user'); // safe fallback; server should still enforce RBAC
+      // Safe fallback; server should still enforce RBAC
+      setRole('new_register');
       setError(e?.message || 'Failed to read user role');
     }
   }, []);
@@ -68,7 +72,7 @@ export function useAuthRole() {
 
       if (!u) {
         setUser(null);
-        setRole('user'); // signed out -> user baseline
+        setRole('new_register'); // signed out -> baseline
         setLoading(false);
         return;
       }
@@ -95,12 +99,13 @@ export function useAuthRole() {
   return {
     // state
     user, // Firebase Auth user or null
-    role, // 'user' | 'operator' | 'moderator' | 'admin'
+    role, // 'new_register' | 'user' | 'operator' | 'moderator' | 'admin'
     loading,
     isLoading: loading, // alias
     error,
 
     // exact-role flags
+    isNewRegister,
     isUser,
     isOperator,
     isModerator,
@@ -109,7 +114,7 @@ export function useAuthRole() {
     // inclusive helpers
     isOperatorPlus, // operator or above
     isModeratorPlus, // moderator or above
-    isAdminPlus, // admin (kept for symmetry)
+    isAdminPlus, // admin
 
     // utils
     gte, // (aRole, bRole) => boolean

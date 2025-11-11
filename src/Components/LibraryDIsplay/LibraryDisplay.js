@@ -14,7 +14,6 @@ import BredCrum from '../BreadCrum/BreadCrum';
 import LibraryUploadFolder from '../LibraryUploadFolder/LibraryUploadFolder';
 import LibraryCreateFolder from '../LibraryCreateFolder/LibraryCreateFolder';
 import LibraryUploadFile from '../LibraryUploadFile/LibraryUploadFile';
-
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFile } from '@fortawesome/free-solid-svg-icons';
 
