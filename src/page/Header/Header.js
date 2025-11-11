@@ -1,13 +1,12 @@
-// src/components/Header/Header.jsx
+// src/page/Header/Header.js
 import React from 'react';
 import './Header.css';
 import { HashLink } from 'react-router-hash-link';
 
-import useAuthRole from '../../Components/Hooks/useAuthRole'; // role & user state
-import useFirebase from '../../Components/Hooks/useFirebase'; // logout helper
+import useAuthRole from '../../Components/Hooks/useAuthRole';
+import useFirebase from '../../Components/Hooks/useFirebase';
 
 const Header = () => {
-  // Safely read auth/role state; provide defaults so UI never crashes
   const {
     user = null,
     isLoading = false,
@@ -24,7 +23,6 @@ const Header = () => {
     }
   })();
 
-  // Normalize flags
   const role =
     typeof rawRole === 'string' ? rawRole.toLowerCase() : 'new_register';
   const isAdmin = rawIsAdmin === true;
@@ -32,14 +30,11 @@ const Header = () => {
   const isOperator = rawIsOperator === true;
   const isUser = rawIsUser === true || role === 'user';
 
-  // 🔐 Visibility rules
   const canSeeAdminLink = isAdmin;
   const canSeeModeratorLink = isModerator || isAdmin;
   const canSeeOperatorLink = isOperator || isModerator || isAdmin;
-  // ⛔ Hide File manager for new_register
   const canSeeFileManager = isUser || isOperator || isModerator || isAdmin;
 
-  // Logout
   const { logOut } = (function safeUseFirebase() {
     try {
       return (typeof useFirebase === 'function' ? useFirebase() : {}) || {};
@@ -54,10 +49,12 @@ const Header = () => {
         await logOut();
       }
     } finally {
-      // Always navigate to login after attempting logout
       window.location.hash = '#/login';
     }
   };
+
+  // Use PUBLIC_URL to ensure the image resolves from any route depth
+  const logoSrc = `${process.env.PUBLIC_URL || ''}/image/img/tcscontrols.png`;
 
   return (
     <div className="w-100 mx-auto margin-header">
@@ -80,14 +77,16 @@ const Header = () => {
               <span className="span-style text-primary icon-style">
                 <img
                   className="second-icon img-fluid"
-                  src="image/img/tcscontrols.png"
-                  alt="tcscontrols.png"
+                  src={logoSrc}
+                  alt="TCS Controls"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
               </span>
             </HashLink>
 
             <ul className="navbar-nav mx-auto mb-2 mb-lg-0 link-style d-flex align-items-center">
-              {/* Avoid flicker while auth is loading */}
               {isLoading ? null : user?.email ? (
                 <>
                   <li className="nav-item">
@@ -99,7 +98,6 @@ const Header = () => {
                     </HashLink>
                   </li>
 
-                  {/* File Manager — only for user/operator/moderator/admin */}
                   {canSeeFileManager && (
                     <li className="nav-item dropdown">
                       <button
@@ -167,7 +165,6 @@ const Header = () => {
                     </li>
                   )}
 
-                  {/* Role sections */}
                   {canSeeOperatorLink && (
                     <li className="nav-item">
                       <HashLink
@@ -189,7 +186,6 @@ const Header = () => {
                     </li>
                   )}
 
-                  {/* Admin area */}
                   {canSeeAdminLink && (
                     <li className="nav-item">
                       <HashLink
@@ -201,7 +197,6 @@ const Header = () => {
                     </li>
                   )}
 
-                  {/* Logout */}
                   <li className="nav-item header-text-style">
                     <button
                       onClick={handleLogout}
