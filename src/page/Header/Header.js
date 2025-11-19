@@ -285,7 +285,7 @@ const Header = () => {
                               className="nav-link dropdown-text-style tcs-dropdown-link"
                               to="/files/financeSystem"
                             >
-                              Finance system
+                              Finance
                             </HashLink>
                           </li>
                         </ul>
