@@ -7,7 +7,7 @@ import { HashLink } from 'react-router-hash-link';
 /**
  * Default roots; now includes:
  * Library, Sourcing & Pricing, Administrative, Administrative System,
- * Sales, Customer Order, Moderator, Operator, and Admin
+ * Sales, Customer Order, Production, Moderator, Operator, and Admin
  */
 const DEFAULT_ROOTS = [
   '/library',
@@ -16,6 +16,7 @@ const DEFAULT_ROOTS = [
   '/administrative-system',
   '/sales',
   '/customer-order',
+  '/production',
   '/moderator',
   '/operator',
   '/admin',
@@ -29,6 +30,7 @@ const DEFAULT_LABELS = {
   '/administrative-system': 'Administrative System',
   '/sales': 'Sales',
   '/customer-order': 'Customer Order',
+  '/production': 'Production',
   '/moderator': 'Moderator',
   '/operator': 'Operator',
   '/admin': 'Admin',
@@ -113,7 +115,7 @@ function BreadCrum({
     // Label for the root; allow custom label map
     const rootLabel =
       labels[root] ||
-      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "administrative-system", "sales", "customer-order", "moderator", "operator", "admin"
+      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "administrative-system", "sales", "customer-order", "production", "moderator", "operator", "admin"
       'root';
 
     const list = [{ name: rootLabel, full: root }];
@@ -175,6 +177,7 @@ BreadCrum.propTypes = {
    * "/administrative-system/policies",
    * "/sales/orders",
    * "/customer-order/12345",
+   * "/production/batch-001",
    * "/moderator/reports",
    * "/operator/shifts",
    * "/admin/settings"
@@ -189,7 +192,7 @@ BreadCrum.propTypes = {
   /**
    * Allowed BreadCrum roots; defaults to:
    * ['/library', '/sourcing-pricing', '/administrative', '/administrative-system',
-   *  '/sales', '/customer-order', '/moderator', '/operator', '/admin']
+   *  '/sales', '/customer-order', '/production', '/moderator', '/operator', '/admin']
    */
   roots: PropTypes.arrayOf(PropTypes.string),
   /** Optional map for custom root labels */
