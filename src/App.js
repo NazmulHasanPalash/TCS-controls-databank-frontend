@@ -28,6 +28,7 @@ import UserRouter from './Components/UserRouter/UserRouter';
 import AdministrativeSystem from './page/AdministrativeSystem/AdministrativeSystem';
 import Sales from './page/Sales/Sales';
 import Production from './page/Production/Production';
+import Hr from './page/Hr/Hr';
 
 function App() {
   return (
@@ -55,6 +56,9 @@ function App() {
             </PrivateRouter>
             <PrivateRouter exact path="/files/productionSystem">
               <Production></Production>
+            </PrivateRouter>
+            <PrivateRouter exact path="/files/hrSystem">
+              <Hr></Hr>
             </PrivateRouter>
 
             {/* File manager sections (any signed-in user) */}
