@@ -4,12 +4,17 @@ import PropTypes from 'prop-types';
 import './BreadCrum.css';
 import { HashLink } from 'react-router-hash-link';
 
-/** Default roots; now includes Administrative System, Administrative, Customer Order, Moderator, Operator, and Admin */
+/**
+ * Default roots; now includes:
+ * Library, Sourcing & Pricing, Administrative, Administrative System,
+ * Sales, Customer Order, Moderator, Operator, and Admin
+ */
 const DEFAULT_ROOTS = [
   '/library',
   '/sourcing-pricing',
   '/administrative',
   '/administrative-system',
+  '/sales',
   '/customer-order',
   '/moderator',
   '/operator',
@@ -22,6 +27,7 @@ const DEFAULT_LABELS = {
   '/sourcing-pricing': 'Sourcing & Pricing',
   '/administrative': 'Administrative',
   '/administrative-system': 'Administrative System',
+  '/sales': 'Sales',
   '/customer-order': 'Customer Order',
   '/moderator': 'Moderator',
   '/operator': 'Operator',
@@ -107,7 +113,7 @@ function BreadCrum({
     // Label for the root; allow custom label map
     const rootLabel =
       labels[root] ||
-      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "administrative-system", "customer-order", "moderator", "operator", "admin"
+      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "administrative-system", "sales", "customer-order", "moderator", "operator", "admin"
       'root';
 
     const list = [{ name: rootLabel, full: root }];
@@ -167,6 +173,7 @@ BreadCrum.propTypes = {
    * "/sourcing-pricing/2025/Q1",
    * "/administrative/hr",
    * "/administrative-system/policies",
+   * "/sales/orders",
    * "/customer-order/12345",
    * "/moderator/reports",
    * "/operator/shifts",
@@ -182,7 +189,7 @@ BreadCrum.propTypes = {
   /**
    * Allowed BreadCrum roots; defaults to:
    * ['/library', '/sourcing-pricing', '/administrative', '/administrative-system',
-   *  '/customer-order', '/moderator', '/operator', '/admin']
+   *  '/sales', '/customer-order', '/moderator', '/operator', '/admin']
    */
   roots: PropTypes.arrayOf(PropTypes.string),
   /** Optional map for custom root labels */

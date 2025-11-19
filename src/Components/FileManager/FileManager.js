@@ -13,7 +13,7 @@ import {
 
 function FileManager() {
   return (
-    <section className="tcs-fm-root">
+    <section className="tcs-fm-root my-5">
       <div className="tcs-fm-shell">
         {/* Header / title */}
         <header className="tcs-fm-header text-center">

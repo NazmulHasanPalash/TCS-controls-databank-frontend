@@ -3,7 +3,7 @@ import './Footer.css';
 
 const Footer = () => {
   return (
-    <footer className="tcs-footer-root mt-100">
+    <footer className="tcs-footer-root ">
       <div className="tcs-footer-gradient" />
       <div className="tcs-footer-shell mx-auto">
         <div className="tcs-footer-bar text-center text-white">
