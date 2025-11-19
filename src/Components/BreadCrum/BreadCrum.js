@@ -4,11 +4,12 @@ import PropTypes from 'prop-types';
 import './BreadCrum.css';
 import { HashLink } from 'react-router-hash-link';
 
-/** Default roots; now includes Administrative, Customer Order, Moderator, Operator, and Admin */
+/** Default roots; now includes Administrative System, Administrative, Customer Order, Moderator, Operator, and Admin */
 const DEFAULT_ROOTS = [
   '/library',
   '/sourcing-pricing',
   '/administrative',
+  '/administrative-system',
   '/customer-order',
   '/moderator',
   '/operator',
@@ -20,6 +21,7 @@ const DEFAULT_LABELS = {
   '/library': 'Library',
   '/sourcing-pricing': 'Sourcing & Pricing',
   '/administrative': 'Administrative',
+  '/administrative-system': 'Administrative System',
   '/customer-order': 'Customer Order',
   '/moderator': 'Moderator',
   '/operator': 'Operator',
@@ -105,7 +107,7 @@ function BreadCrum({
     // Label for the root; allow custom label map
     const rootLabel =
       labels[root] ||
-      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "customer-order", "moderator", "operator", "admin"
+      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "administrative-system", "customer-order", "moderator", "operator", "admin"
       'root';
 
     const list = [{ name: rootLabel, full: root }];
@@ -159,7 +161,17 @@ function BreadCrum({
 }
 
 BreadCrum.propTypes = {
-  /** Current absolute path (e.g., "/library/foo", "/sourcing-pricing/2025/Q1", "/administrative/hr", "/customer-order/12345", "/moderator/reports", "/operator/shifts", "/admin/settings") */
+  /**
+   * Current absolute path
+   * e.g. "/library/foo",
+   * "/sourcing-pricing/2025/Q1",
+   * "/administrative/hr",
+   * "/administrative-system/policies",
+   * "/customer-order/12345",
+   * "/moderator/reports",
+   * "/operator/shifts",
+   * "/admin/settings"
+   */
   path: PropTypes.string.isRequired,
   /** Called with the full path when a crumb is clicked */
   onNavigate: PropTypes.func,
@@ -167,7 +179,11 @@ BreadCrum.propTypes = {
   className: PropTypes.string,
   /** Optional title for the root <nav> (used as tooltip) */
   title: PropTypes.string,
-  /** Allowed BreadCrum roots; defaults to ['/library', '/sourcing-pricing', '/administrative', '/customer-order', '/moderator', '/operator', '/admin'] */
+  /**
+   * Allowed BreadCrum roots; defaults to:
+   * ['/library', '/sourcing-pricing', '/administrative', '/administrative-system',
+   *  '/customer-order', '/moderator', '/operator', '/admin']
+   */
   roots: PropTypes.arrayOf(PropTypes.string),
   /** Optional map for custom root labels */
   rootLabelMap: PropTypes.object,

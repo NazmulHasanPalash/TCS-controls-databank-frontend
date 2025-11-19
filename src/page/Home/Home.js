@@ -6,10 +6,33 @@ import './Home.css';
 import Header from '../Header/Header';
 import FileManager from '../../Components/FileManager/FileManager';
 
-// ✅ Role hook (adjust the path if your folder is named differently)
+// ✅ Role hook (path matches: src/hooks/useAuthRole.js)
 import useAuthRole from '../../Components/Hooks/useAuthRole';
 
-const ALLOWED_ROLES = ['user', 'operator', 'moderator', 'admin'];
+// Roles that ARE allowed to see the Home + FileManager page.
+// We allow all department "new_*" roles, department roles, and elevated roles.
+// Only "new_register" (or unknown roles) will see the pending-authorization modal.
+const ALLOWED_ROLES = [
+  // Onboarding department roles
+  'new_sales',
+  'new_production',
+  'new_finance',
+  'new_hr',
+  'new_administrative',
+
+  // Regular / active roles
+  'user',
+  'sales',
+  'production',
+  'finance',
+  'hr',
+  'administrative',
+
+  // Elevated roles
+  'operator',
+  'moderator',
+  'admin',
+];
 
 const Home = () => {
   const { role, isLoading } = useAuthRole();
@@ -35,15 +58,12 @@ const Home = () => {
       <div>
         <Header />
         <FIrsstHomePageBanner />
-
-        <h1 className="home-page-heading-style mx-auto my-5 text-primary">
-          File Manager
-        </h1>
         <FileManager />
       </div>
     );
   }
 
+  // new_register or any unknown role → show pending authorization message
   return (
     <>
       <div

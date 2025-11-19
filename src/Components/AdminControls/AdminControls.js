@@ -8,12 +8,44 @@ import ApiDefault, { api as apiNamed } from '../Api/Api';
 
 const api = apiNamed || ApiDefault;
 
-// Must match server ALLOWED_ROLES:
-// ['new_register','user','associate','operator','moderator','admin']
+// Must match server ALLOWED_ROLES exactly:
+// [
+//   'new_register',
+//   'user',
+//   'new_sales',
+//   'new_production',
+//   'new_finance',
+//   'new_hr',
+//   'new_administrative',
+//   'sales',
+//   'production',
+//   'finance',
+//   'hr',
+//   'administrative',
+//   'operator',
+//   'moderator',
+//   'admin',
+// ]
 const ROLES = [
+  // Base
   'new_register',
   'user',
-  'associate',
+
+  // Onboarding / new roles
+  'new_sales',
+  'new_production',
+  'new_finance',
+  'new_hr',
+  'new_administrative',
+
+  // Regular / active department roles
+  'sales',
+  'production',
+  'finance',
+  'hr',
+  'administrative',
+
+  // Elevated roles
   'operator',
   'moderator',
   'admin',

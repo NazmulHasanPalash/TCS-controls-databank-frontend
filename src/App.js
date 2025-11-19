@@ -25,6 +25,7 @@ import AdminRouter from './Components/AdminRouter/AdminRouter';
 import ModeratorRouter from './Components/ModeratorRouter/ModeratorRouter';
 import OperatorRouter from './Components/OperatorRouter/OperatorRouter';
 import UserRouter from './Components/UserRouter/UserRouter';
+import AdministrativeSystem from './page/AdministrativeSystem/AdministrativeSystem';
 
 function App() {
   return (
@@ -43,6 +44,9 @@ function App() {
             {/* Authenticated (any signed-in user) */}
             <PrivateRouter exact path="/home">
               <Home />
+            </PrivateRouter>
+            <PrivateRouter exact path="/files/administrativeSystem">
+              <AdministrativeSystem></AdministrativeSystem>
             </PrivateRouter>
 
             {/* File manager sections (any signed-in user) */}

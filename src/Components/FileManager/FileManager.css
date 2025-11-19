@@ -1,4 +1,260 @@
-.card-style:hover {
-  border: solid 2px blue;
-  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+/* ============ Root layout ============ */
+
+.tcs-fm-root {
+  width: 100%;
+  padding: 3.5rem 1.5rem 3rem;
+  display: flex;
+  justify-content: center;
+  background: radial-gradient(
+      circle at top left,
+      rgba(187, 247, 208, 0.32),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(221, 239, 253, 0.7),
+      transparent 55%
+    ),
+    #f9fafb; /* light, clean base */
+}
+
+.tcs-fm-shell {
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
+}
+
+/* ============ Header ============ */
+
+.tcs-fm-header {
+  margin-bottom: 2.5rem;
+  color: #0f172a;
+  text-align: center;
+  animation: tcs-fm-fade-up 480ms ease-out forwards;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.tcs-fm-title {
+  font-size: 1.9rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #0f172a;
+  margin-bottom: 0.35rem;
+}
+
+.tcs-fm-subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+/* ============ Grid ============ */
+
+.tcs-fm-grid {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ============ Card links ============ */
+
+.card-link-style,
+.tcs-fm-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+/* ============ Cards ============ */
+
+.card-style.tcs-fm-card {
+  background: radial-gradient(
+      circle at top left,
+      rgba(240, 253, 244, 0.9),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(241, 245, 249, 0.9),
+      transparent 65%
+    ),
+    #ffffff;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(226, 232, 240, 0.9);
+  color: #0f172a;
+  transition: transform 220ms ease-out, box-shadow 220ms ease-out,
+    border-color 220ms ease-out, background 220ms ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+/* subtle inner gradient glow overlay */
+.tcs-fm-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at top center,
+    rgba(74, 222, 128, 0.18),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 220ms ease-out;
+  pointer-events: none;
+}
+
+/* hover / focus state */
+.tcs-fm-card:hover,
+.tcs-fm-card:focus-within {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(22, 163, 74, 0.45);
+  border-color: rgba(22, 163, 74, 0.75);
+  background: radial-gradient(
+      circle at top left,
+      rgba(240, 253, 244, 1),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(241, 245, 249, 1),
+      transparent 65%
+    ),
+    #ffffff;
+}
+
+.tcs-fm-card:hover::before,
+.tcs-fm-card:focus-within::before {
+  opacity: 1;
+}
+
+/* staggered entrance animation */
+.tcs-fm-card-1,
+.tcs-fm-card-2,
+.tcs-fm-card-3,
+.tcs-fm-card-4,
+.tcs-fm-card-5,
+.tcs-fm-card-6 {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: tcs-fm-fade-up 520ms ease-out forwards;
+}
+
+.tcs-fm-card-1 {
+  animation-delay: 80ms;
+}
+.tcs-fm-card-2 {
+  animation-delay: 140ms;
+}
+.tcs-fm-card-3 {
+  animation-delay: 200ms;
+}
+.tcs-fm-card-4 {
+  animation-delay: 260ms;
+}
+.tcs-fm-card-5 {
+  animation-delay: 320ms;
+}
+.tcs-fm-card-6 {
+  animation-delay: 380ms;
+}
+
+/* ============ Icon pill (green accent) ============ */
+
+.tcs-fm-icon-pill {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  background: radial-gradient(circle at 30% 0%, #22c55e, #16a34a);
+  border: 1px solid rgba(22, 163, 74, 0.9);
+  box-shadow: 0 0 0 1px rgba(209, 250, 229, 0.95),
+    0 10px 24px rgba(22, 163, 74, 0.35);
+  transform: translateY(0);
+  transition: transform 220ms ease-out, box-shadow 220ms ease-out,
+    border-color 220ms ease-out;
+}
+
+/* icon itself */
+.tcs-fm-icon {
+  font-size: 1.55rem;
+  color: #ecfdf5;
+}
+
+/* bump + glow on hover */
+.tcs-fm-card:hover .tcs-fm-icon-pill,
+.tcs-fm-card:focus-within .tcs-fm-icon-pill {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 30px rgba(22, 163, 74, 0.4),
+    0 0 0 1px rgba(34, 197, 94, 0.9);
+  border-color: rgba(34, 197, 94, 0.95);
+}
+
+/* ============ Card text ============ */
+
+.tcs-fm-card-title {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f172a;
+}
+
+.tcs-fm-card-text {
+  font-size: 0.8rem;
+  color: #6b7280;
+  max-width: 240px;
+  margin: 0.1rem auto 0;
+}
+
+/* ============ Shared animation ============ */
+
+@keyframes tcs-fm-fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============ Responsive tweaks ============ */
+
+@media (max-width: 991.98px) {
+  .tcs-fm-root {
+    padding: 3rem 1.2rem 2.75rem;
+  }
+
+  .tcs-fm-title {
+    font-size: 1.7rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .tcs-fm-root {
+    padding: 2.5rem 1rem 2.25rem;
+  }
+
+  .tcs-fm-title {
+    font-size: 1.5rem;
+  }
+
+  .tcs-fm-subtitle {
+    font-size: 0.86rem;
+  }
 }

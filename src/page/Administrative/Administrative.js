@@ -9,8 +9,6 @@ const Administrative = () => {
     <div>
       <Header></Header>
       <AdministrativeDisplay></AdministrativeDisplay>
-
-      <Footer></Footer>
     </div>
   );
 };

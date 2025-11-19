@@ -1,14 +1,43 @@
 // src/router/PrivateRouter.js
-// React Router v5 guard that ALLOWS roles: user | operator | moderator | admin
-// and DENIES: new_register (or any unknown role).
+// React Router v5 guard.
+//
+// Default behaviour (if you don't pass allowedRoles):
+//   ✅ ALLOW:
+//        new_sales, new_production, new_finance, new_hr, new_administrative,
+//        user, sales, production, finance, hr, administrative,
+//        operator, moderator, admin
+//   ❌ DENY:
+//        new_register and any unknown role.
 
 import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import useAuth from '../Hooks/useAuth'; // adjust path/casing as in your project
 import useAuthRole from '../Hooks/useAuthRole'; // adjust path/casing as in your project
 
-// Keep roles consistent with your backend and useAuthRole hook
-const ROLE_ORDER = ['new_register', 'user', 'operator', 'moderator', 'admin'];
+// Keep roles consistent with backend + useAuthRole
+// Lowest → Highest
+const ROLE_ORDER = [
+  // Onboarding / new roles
+  'new_register',
+  'new_sales',
+  'new_production',
+  'new_finance',
+  'new_hr',
+  'new_administrative',
+
+  // Regular / active roles
+  'user',
+  'sales',
+  'production',
+  'finance',
+  'hr',
+  'administrative',
+
+  // Elevated roles
+  'operator',
+  'moderator',
+  'admin',
+];
 
 function normalizeRole(v) {
   const r = String(v || '')
@@ -17,20 +46,32 @@ function normalizeRole(v) {
   return ROLE_ORDER.includes(r) ? r : 'new_register';
 }
 
-/**
- * Props:
- * - allowedRoles?: string[]  (default: ['user','operator','moderator','admin'])
- * - redirectIfDenied?: string (default: '/')
- * - redirectIfSignedOut?: string (default: '/login')
- *
- * Example:
- *   <PrivateRouter path="/admin" allowedRoles={['admin']}>
- *     <AdminPage />
- *   </PrivateRouter>
- */
 const PrivateRouter = ({
   children,
-  allowedRoles = ['new_register', 'user', 'operator', 'moderator', 'admin'],
+  // Default: allow all department "new_*" roles, active roles, and elevated roles.
+  // Only "new_register" (and unknown roles) are denied by default.
+  allowedRoles = [
+    // Onboarding / department new roles
+    'new_register',
+    'new_sales',
+    'new_production',
+    'new_finance',
+    'new_hr',
+    'new_administrative',
+
+    // Regular / active roles
+    'user',
+    'sales',
+    'production',
+    'finance',
+    'hr',
+    'administrative',
+
+    // Elevated
+    'operator',
+    'moderator',
+    'admin',
+  ],
   redirectIfDenied = '/',
   redirectIfSignedOut = '/login',
   ...rest
@@ -67,7 +108,7 @@ const PrivateRouter = ({
           );
         }
 
-        // Signed in but role not allowed (e.g., 'new_register') → send away
+        // Signed in but role not allowed → redirect
         const allowed = allowedRoles.map(normalizeRole);
         if (!allowed.includes(role)) {
           return <Redirect to={{ pathname: redirectIfDenied }} />;

@@ -10,7 +10,6 @@ function SourcingAndPricing() {
     <div>
       <Header></Header>
       <SourcingAndPricingDisplay></SourcingAndPricingDisplay>
-      <Footer></Footer>
     </div>
   );
 }

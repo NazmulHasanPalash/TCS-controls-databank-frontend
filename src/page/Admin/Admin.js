@@ -13,8 +13,6 @@ function Admin() {
       <Header></Header>
       <AdminDisplay></AdminDisplay>
       <AdminControls></AdminControls>
-
-      <Footer></Footer>
     </div>
   );
 }

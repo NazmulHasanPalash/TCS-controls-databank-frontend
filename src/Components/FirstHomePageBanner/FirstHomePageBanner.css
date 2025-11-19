@@ -1,9 +1,284 @@
+/* ============ Root layout ============ */
+
 .banner-margin {
-    margin-top: 120px;
-    margin-bottom: 20px;
+  margin-top: 4rem;
+  margin-bottom: 3rem;
 }
 
-.first-banner {
-    align-items: center;
-    border: none;
+/* Light, bright background behind banner */
+.fhb-root {
+  display: flex;
+  justify-content: center;
+  padding-inline: 1.5rem;
+  background: radial-gradient(
+      circle at top left,
+      rgba(187, 247, 208, 0.7),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(221, 239, 253, 0.85),
+      transparent 55%
+    ),
+    #f9fafb;
+}
+
+.fhb-shell {
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
+}
+
+/* ============ Card ============ */
+
+.banner-style.fhb-card {
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: radial-gradient(
+      circle at top left,
+      rgba(240, 253, 244, 0.95),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(239, 246, 255, 0.95),
+      transparent 60%
+    ),
+    #ffffff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.1),
+    0 0 0 1px rgba(226, 232, 240, 0.9);
+  position: relative;
+  isolation: isolate;
+  animation: fhb-fade-up 520ms ease-out forwards;
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* subtle highlight overlay */
+.fhb-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 20% 0%,
+    rgba(74, 222, 128, 0.22),
+    transparent 60%
+  );
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* ============ Text side ============ */
+
+.fhb-copy {
+  padding: 3rem 3rem 3rem 3.25rem;
+  color: #0f172a;
+}
+
+.fhb-kicker {
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #16a34a; /* green accent */
+  margin-bottom: 0.75rem;
+}
+
+.fhb-title {
+  font-size: 2rem;
+  line-height: 1.25;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+}
+
+.fhb-title-accent {
+  color: #16a34a;
+}
+
+.fhb-subtitle {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #64748b;
+  max-width: 420px;
+  margin-bottom: 1.4rem;
+}
+
+/* meta pills row */
+.fhb-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fhb-meta-pill {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(209, 213, 219, 0.9);
+  color: #0f172a;
+  background: radial-gradient(circle at top left, #ffffff, #f9fafb);
+}
+
+.fhb-meta-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.9);
+  opacity: 0.9;
+}
+
+/* ============ Visual side ============ */
+
+.fhb-media-wrapper {
+  position: relative;
+  padding: 2.25rem 2.75rem 2.25rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Orbit shapes behind the image (soft green/blue) */
+.fhb-orbit {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(4px);
+  opacity: 0.9;
+}
+
+.fhb-orbit-1 {
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(
+    circle,
+    rgba(74, 222, 128, 0.85),
+    rgba(165, 243, 252, 0.2)
+  );
+  transform: translateY(6px);
+}
+
+.fhb-orbit-2 {
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.35),
+    transparent 60%
+  );
+  transform: translate(40px, -40px);
+  opacity: 0.8;
+}
+
+/* main image */
+.fhb-image {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  border-radius: 20px;
+  object-fit: cover;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(226, 232, 240, 0.9);
+  animation: fhb-float 6s ease-in-out infinite;
+}
+
+/* ============ Animations ============ */
+
+@keyframes fhb-fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fhb-float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* ============ Responsive tweaks ============ */
+
+@media (max-width: 991.98px) {
+  .banner-margin {
+    margin-top: 3rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .fhb-copy {
+    padding: 2.5rem 2.25rem 2.25rem;
+  }
+
+  .fhb-title {
+    font-size: 1.7rem;
+  }
+
+  .fhb-media-wrapper {
+    padding: 2rem 2rem 2.25rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .fhb-card .row {
+    flex-direction: column-reverse;
+  }
+
+  .fhb-media-wrapper {
+    padding-top: 2.25rem;
+  }
+
+  .fhb-copy {
+    text-align: left;
+  }
+
+  .fhb-subtitle {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .fhb-root {
+    padding-inline: 1rem;
+  }
+
+  .fhb-copy {
+    padding: 2rem 1.6rem 2.1rem;
+  }
+
+  .fhb-title {
+    font-size: 1.45rem;
+  }
+
+  .fhb-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .fhb-media-wrapper {
+    padding: 1.8rem 1.6rem 2rem;
+  }
+
+  .fhb-orbit-1 {
+    width: 220px;
+    height: 220px;
+  }
+
+  .fhb-orbit-2 {
+    width: 150px;
+    height: 150px;
+    transform: translate(30px, -30px);
+  }
 }

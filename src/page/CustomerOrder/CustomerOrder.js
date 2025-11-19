@@ -9,8 +9,6 @@ const CustomerOrder = () => {
     <div>
       <Header></Header>
       <CustomerOrderDisplay></CustomerOrderDisplay>
-
-      <Footer></Footer>
     </div>
   );
 };

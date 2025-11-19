@@ -9,7 +9,6 @@ const Library = () => {
     <div>
       <Header></Header>
       <LibraryDisplay></LibraryDisplay>
-      <Footer></Footer>
     </div>
   );
 };

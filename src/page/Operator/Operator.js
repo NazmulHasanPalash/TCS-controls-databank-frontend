@@ -11,7 +11,6 @@ function Operator() {
     <div>
       <Header></Header>
       <OperatorDisplay></OperatorDisplay>
-      <Footer></Footer>
     </div>
   );
 }

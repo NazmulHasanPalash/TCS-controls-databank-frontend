@@ -11,7 +11,6 @@ function Moderator() {
     <div>
       <Header></Header>
       <ModeratorDisplay></ModeratorDisplay>
-      <Footer></Footer>
     </div>
   );
 }

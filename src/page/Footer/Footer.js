@@ -3,14 +3,18 @@ import './Footer.css';
 
 const Footer = () => {
   return (
-    <div className="mt-auto footer-top-margin">
-      <div className="footer-style mx-auto p-3 text-center text-white footer-style mt-auto">
-        <p>
-          Copyright 2025 TCS Controls Sdn Bhd 200801028053 (New) / 829380-T
-          (Old). All Rights Reserved.
-        </p>
+    <footer className="tcs-footer-root mt-100">
+      <div className="tcs-footer-gradient" />
+      <div className="tcs-footer-shell mx-auto">
+        <div className="tcs-footer-bar text-center text-white">
+          <div className="tcs-footer-glow" />
+          <p className="tcs-footer-text mb-0">
+            Copyright 2025 TCS Controls Sdn Bhd 200801028053 (New) / 829380-T
+            (Old). All Rights&nbsp;Reserved.
+          </p>
+        </div>
       </div>
-    </div>
+    </footer>
   );
 };
 
