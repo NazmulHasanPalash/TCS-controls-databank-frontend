@@ -239,9 +239,7 @@ const Header = () => {
                           aria-expanded="false"
                           type="button"
                         >
-                          <span className="tcs-link-label">
-                            Permanent employ
-                          </span>
+                          <span className="tcs-link-label">Role-1</span>
                           <span className="tcs-link-underline" />
                         </button>
                         <ul
@@ -253,7 +251,7 @@ const Header = () => {
                               className="nav-link dropdown-text-style tcs-dropdown-link"
                               to="/files/administrativeSystem"
                             >
-                              Administrative System
+                              Administration
                             </HashLink>
                           </li>
                           <li>
@@ -302,7 +300,7 @@ const Header = () => {
                           aria-expanded="false"
                           type="button"
                         >
-                          <span className="tcs-link-label">New employ</span>
+                          <span className="tcs-link-label">Role-2</span>
                           <span className="tcs-link-underline" />
                         </button>
                         <ul
@@ -314,7 +312,7 @@ const Header = () => {
                               className="nav-link dropdown-text-style tcs-dropdown-link"
                               to="/files/newAdministrativeSystem"
                             >
-                              New Administrative System
+                              New Administration
                             </HashLink>
                           </li>
                           <li>
