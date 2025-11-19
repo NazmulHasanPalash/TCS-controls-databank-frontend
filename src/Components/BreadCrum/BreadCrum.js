@@ -7,7 +7,7 @@ import { HashLink } from 'react-router-hash-link';
 /**
  * Default roots; now includes:
  * Library, Sourcing & Pricing, Administrative, Administrative System,
- * Sales, Customer Order, Production, HR, Moderator, Operator, and Admin
+ * Sales, Customer Order, Production, Finance, HR, Moderator, Operator, and Admin
  */
 const DEFAULT_ROOTS = [
   '/library',
@@ -17,6 +17,7 @@ const DEFAULT_ROOTS = [
   '/sales',
   '/customer-order',
   '/production',
+  '/finance',
   '/hr',
   '/moderator',
   '/operator',
@@ -32,6 +33,7 @@ const DEFAULT_LABELS = {
   '/sales': 'Sales',
   '/customer-order': 'Customer Order',
   '/production': 'Production',
+  '/finance': 'Finance',
   '/hr': 'HR',
   '/moderator': 'Moderator',
   '/operator': 'Operator',
@@ -117,7 +119,7 @@ function BreadCrum({
     // Label for the root; allow custom label map
     const rootLabel =
       labels[root] ||
-      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "administrative-system", "sales", "customer-order", "production", "hr", "moderator", "operator", "admin"
+      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "administrative-system", "sales", "customer-order", "production", "finance", "hr", "moderator", "operator", "admin"
       'root';
 
     const list = [{ name: rootLabel, full: root }];
@@ -180,6 +182,7 @@ BreadCrum.propTypes = {
    * "/sales/orders",
    * "/customer-order/12345",
    * "/production/batch-001",
+   * "/finance/reports",
    * "/hr/policies",
    * "/moderator/reports",
    * "/operator/shifts",
@@ -195,7 +198,7 @@ BreadCrum.propTypes = {
   /**
    * Allowed BreadCrum roots; defaults to:
    * ['/library', '/sourcing-pricing', '/administrative', '/administrative-system',
-   *  '/sales', '/customer-order', '/production', '/hr', '/moderator', '/operator', '/admin']
+   *  '/sales', '/customer-order', '/production', '/finance', '/hr', '/moderator', '/operator', '/admin']
    */
   roots: PropTypes.arrayOf(PropTypes.string),
   /** Optional map for custom root labels */

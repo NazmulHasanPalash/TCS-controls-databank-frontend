@@ -29,6 +29,7 @@ import AdministrativeSystem from './page/AdministrativeSystem/AdministrativeSyst
 import Sales from './page/Sales/Sales';
 import Production from './page/Production/Production';
 import Hr from './page/Hr/Hr';
+import Finance from './page/Finance/Finance';
 
 function App() {
   return (
@@ -59,6 +60,9 @@ function App() {
             </PrivateRouter>
             <PrivateRouter exact path="/files/hrSystem">
               <Hr></Hr>
+            </PrivateRouter>
+            <PrivateRouter exact path="/files/financeSystem">
+              <Finance></Finance>
             </PrivateRouter>
 
             {/* File manager sections (any signed-in user) */}

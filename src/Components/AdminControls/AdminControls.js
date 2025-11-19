@@ -16,12 +16,12 @@ const api = apiNamed || ApiDefault;
 //   'new_production',
 //   'new_finance',
 //   'new_hr',
-//   'new_administration',
+//   'new_administrative',
 //   'sales',
 //   'production',
 //   'finance',
 //   'hr',
-//   'administration',
+//   'administrative',
 //   'operator',
 //   'moderator',
 //   'admin',
@@ -36,14 +36,14 @@ const ROLES = [
   'new_production',
   'new_finance',
   'new_hr',
-  'new_administration',
+  'new_administrative',
 
   // Regular / active department roles
   'sales',
   'production',
   'finance',
   'hr',
-  'administration',
+  'administrative',
 
   // Elevated roles
   'operator',
