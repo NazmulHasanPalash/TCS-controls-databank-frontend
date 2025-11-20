@@ -30,6 +30,7 @@ import Sales from './page/Sales/Sales';
 import Production from './page/Production/Production';
 import Hr from './page/Hr/Hr';
 import Finance from './page/Finance/Finance';
+import NewAdministration from './page/NewAdministration/NewAdministration';
 
 function App() {
   return (
@@ -49,7 +50,7 @@ function App() {
             <PrivateRouter exact path="/home">
               <Home />
             </PrivateRouter>
-            <PrivateRouter exact path="/files/administrativeSystem">
+            <PrivateRouter exact path="/files/administrationSystem">
               <AdministrativeSystem></AdministrativeSystem>
             </PrivateRouter>
             <PrivateRouter exact path="/files/salesSystem">
@@ -63,6 +64,9 @@ function App() {
             </PrivateRouter>
             <PrivateRouter exact path="/files/financeSystem">
               <Finance></Finance>
+            </PrivateRouter>
+            <PrivateRouter exact path="/files/newAdministrationSystem">
+              <NewAdministration></NewAdministration>
             </PrivateRouter>
 
             {/* File manager sections (any signed-in user) */}

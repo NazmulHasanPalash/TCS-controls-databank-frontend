@@ -249,7 +249,7 @@ const Header = () => {
                           <li>
                             <HashLink
                               className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/administrativeSystem"
+                              to="/files/administrationSystem"
                             >
                               Administration
                             </HashLink>
@@ -310,7 +310,7 @@ const Header = () => {
                           <li>
                             <HashLink
                               className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/newAdministrativeSystem"
+                              to="/files/newAdministrationSystem"
                             >
                               New Administration
                             </HashLink>
