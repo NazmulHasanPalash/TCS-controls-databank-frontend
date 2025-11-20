@@ -7,7 +7,7 @@ import { HashLink } from 'react-router-hash-link';
 /**
  * Default roots; now includes:
  * Library, Sourcing & Pricing, Administrative, New Administration, Administrative System,
- * Sales, New Sales, Customer Order, Production, New Production, Finance, New Finance, HR,
+ * Sales, New Sales, Customer Order, Production, New Production, Finance, New Finance, HR, New HR,
  * Moderator, Operator, and Admin
  */
 const DEFAULT_ROOTS = [
@@ -24,6 +24,7 @@ const DEFAULT_ROOTS = [
   '/finance',
   '/new-finance',
   '/hr',
+  '/new-hr',
   '/moderator',
   '/operator',
   '/admin',
@@ -44,6 +45,7 @@ const DEFAULT_LABELS = {
   '/finance': 'Finance',
   '/new-finance': 'New Finance',
   '/hr': 'HR',
+  '/new-hr': 'New HR',
   '/moderator': 'Moderator',
   '/operator': 'Operator',
   '/admin': 'Admin',
@@ -128,7 +130,7 @@ function BreadCrum({
     // Label for the root; allow custom label map
     const rootLabel =
       labels[root] ||
-      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "new-administration", "administrative-system", "sales", "new-sales", "customer-order", "production", "new-production", "finance", "new-finance", "hr", "moderator", "operator", "admin"
+      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "new-administration", "administrative-system", "sales", "new-sales", "customer-order", "production", "new-production", "finance", "new-finance", "hr", "new-hr", "moderator", "operator", "admin"
       'root';
 
     const list = [{ name: rootLabel, full: root }];
@@ -197,6 +199,7 @@ BreadCrum.propTypes = {
    * "/finance/reports",
    * "/new-finance/reports",
    * "/hr/policies",
+   * "/new-hr/policies",
    * "/moderator/reports",
    * "/operator/shifts",
    * "/admin/settings"
@@ -213,7 +216,7 @@ BreadCrum.propTypes = {
    * ['/library', '/sourcing-pricing', '/administrative', '/new-administration',
    *  '/administrative-system', '/sales', '/new-sales', '/customer-order',
    *  '/production', '/new-production', '/finance', '/new-finance', '/hr',
-   *  '/moderator', '/operator', '/admin']
+   *  '/new-hr', '/moderator', '/operator', '/admin']
    */
   roots: PropTypes.arrayOf(PropTypes.string),
   /** Optional map for custom root labels */
