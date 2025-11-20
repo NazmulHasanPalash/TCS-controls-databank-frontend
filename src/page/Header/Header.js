@@ -56,9 +56,10 @@ const Header = () => {
     isAdmin ||
     DEPARTMENT_ROLES.includes(role);
 
-  // Administrative System inside File manager:
+  // Administrative System inside File manager (placeholder)
   const canSeeAdministrativeSystem =
     isAdmin || isModerator || isOperator || role === 'administrative';
+  void canSeeAdministrativeSystem; // avoid unused variable warning
 
   // Permanent employ dropdown
   const PERMANENT_EMP_ROLES = [
@@ -108,7 +109,7 @@ const Header = () => {
       <div className="tcs-header-gradient" />
 
       <div className="tcs-header-shell container-fluid px-0">
-        <nav className="navbar navbar-expand-lg header-style tcs-header-glass tcs-header-animate">
+        <nav className="navbar navbar-expand-lg navbar-dark header-style tcs-header-glass tcs-header-animate">
           <div className="container-fluid tcs-header-inner">
             {/* Logo + brand */}
             <HashLink className="navbar-brand tcs-header-brand" to="/home#home">
@@ -128,7 +129,7 @@ const Header = () => {
               </span>
             </HashLink>
 
-            {/* Toggler */}
+            {/* Toggler (mobile) */}
             <button
               className="navbar-toggler tcs-navbar-toggler"
               type="button"
@@ -190,7 +191,7 @@ const Header = () => {
                               className="nav-link dropdown-text-style tcs-dropdown-link"
                               to="/files/sourcingAndPricing"
                             >
-                              Sourcing and Pricing
+                              Sourcing &amp; Pricing
                             </HashLink>
                           </li>
                           <li>
@@ -229,7 +230,7 @@ const Header = () => {
                       </li>
                     )}
 
-                    {/* Permanent employ dropdown */}
+                    {/* Permanent employ dropdown (Role-1) */}
                     {canSeePermanentEmploy && (
                       <li className="nav-item dropdown tcs-nav-item">
                         <button
@@ -290,7 +291,7 @@ const Header = () => {
                       </li>
                     )}
 
-                    {/* New employ dropdown */}
+                    {/* New employ dropdown (Role-2) */}
                     {canSeeNewEmploy && (
                       <li className="nav-item dropdown tcs-nav-item">
                         <button

@@ -1,4 +1,4 @@
-// SourcingAndPricingDisplay.js
+// src/Components/SourcingAndPricingDisplay/SourcingAndPricingDisplay.jsx
 import React, {
   useCallback,
   useEffect,
@@ -14,7 +14,6 @@ import BredCrum from '../BreadCrum/BreadCrum';
 import SourcingAndPricingUploadFolder from '../SourcingAndPricingUploadFolder/SourcingAndPricingUploadFolder';
 import SourcingAndPricingCreateFolder from '../SourcingAndPricingCreateFolder/SourcingAndPricingCreateFolder';
 import SourcingAndPricingUploadFile from '../SourcingAndPricingUploadFile/SourcingAndPricingUploadFile';
-
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFile } from '@fortawesome/free-solid-svg-icons';
 
@@ -29,17 +28,9 @@ const API_BASE = ensureHttpBase(
 );
 
 const START_PATH =
-  (process.env.REACT_APP_SNP_START_PATH || '/sourcing-pricing').replace(
-    /\/+$/,
-    ''
-  ) || '/sourcing-pricing';
-
-/* ================= Axios (no-throw, same-site cookies) ================= */
-const api = axios.create({
-  baseURL: API_BASE,
-  withCredentials: true,
-  validateStatus: () => true,
-});
+  (
+    process.env.REACT_APP_SOURCING_PRICING_START_PATH || '/sourcing-pricing'
+  ).replace(/\/+$/, '') || '/sourcing-pricing';
 
 /* ================= Helpers ================= */
 const normalizePath = (p) =>
@@ -87,7 +78,6 @@ const isAud = (n) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(n);
 const isVid = (n) => /\.(mp4|m4v|webm|ogv|mov|mkv|3gp)$/i.test(n);
 const isOffice = (n) => /\.(docx?|xlsx?|pptx?)$/i.test(n);
 
-/* --- Video MIME guesser for correct <source type="..."> --- */
 const guessVideoMime = (name, fallback = 'video/mp4') => {
   if (/\.mp4$/i.test(name) || /\.m4v$/i.test(name)) return 'video/mp4';
   if (/\.webm$/i.test(name)) return 'video/webm';
@@ -102,13 +92,12 @@ const sortItems = (items) =>
   [...items].sort((a, b) => {
     const da = a.isDirectory ? 0 : 1;
     const db = b.isDirectory ? 0 : 1;
-    if (da !== db) return da - db; // folders first
+    if (da !== db) return da - db;
     return String(a.name).localeCompare(String(b.name), undefined, {
       sensitivity: 'base',
     });
   });
 
-/** Ensure navigation cannot go above START_PATH */
 const clampToBase = (targetPath) => {
   const base = normalizePath(START_PATH);
   if (!targetPath) return base;
@@ -117,7 +106,6 @@ const clampToBase = (targetPath) => {
   return normalized.startsWith(base) ? normalized : base;
 };
 
-/** Trigger a browser download */
 const triggerDownload = (url, filename) => {
   const a = document.createElement('a');
   a.href = url;
@@ -129,7 +117,7 @@ const triggerDownload = (url, filename) => {
   a.remove();
 };
 
-/** Collapse selection so deleting a parent folder doesn't also try deleting its children */
+/** Collapse selection so parents remove their children (avoid double delete) */
 const collapseSelection = (paths) => {
   const sorted = [...paths].sort((a, b) => a.localeCompare(b));
   const result = [];
@@ -195,7 +183,7 @@ function ConfirmDeleteModal({ open, items, submitting, onCancel, onConfirm }) {
   if (!open) return null;
 
   const total = items.length;
-  const first = items[0] || { name: '', isDirectory: false };
+  const first = items[0];
   const title =
     total === 1
       ? `Delete ${first.isDirectory ? 'folder' : 'file'} "${first.name}"?`
@@ -244,7 +232,7 @@ function ConfirmDeleteModal({ open, items, submitting, onCancel, onConfirm }) {
 
 ConfirmDeleteModal.propTypes = {
   open: PropTypes.bool.isRequired,
-  items: PropTypes.array.isRequired,
+  items: PropTypes.array.isRequired, // [{name, fullPath, isDirectory}]
   submitting: PropTypes.bool.isRequired,
   onCancel: PropTypes.func.isRequired,
   onConfirm: PropTypes.func.isRequired,
@@ -256,6 +244,7 @@ function SourcingAndPricingDisplay() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [selected, setSelected] = useState(() => new Set());
 
   // Search
@@ -278,14 +267,17 @@ function SourcingAndPricingDisplay() {
     url: '',
     text: '',
     name: '',
-    mime: '',
+    mime: '', // used for video source type
   });
+
+  // Blob URL tracking
+  const objectUrlRef = useRef('');
 
   // Rename modal
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
 
-  // Working flags
+  // Deleting/working flag
   const [working, setWorking] = useState(false);
 
   // Confirm delete modal state
@@ -293,18 +285,18 @@ function SourcingAndPricingDisplay() {
   const [confirmItems, setConfirmItems] = useState([]); // [{name, fullPath, isDirectory}]
   const [confirmSubmitting, setConfirmSubmitting] = useState(false);
 
-  /* ===== Fetcher (manual refresh + after ops/uploads) ===== */
+  /* ===== Fetcher ===== */
   const fetchList = useCallback(async () => {
     const controller = new AbortController();
     setLoading(true);
     setErrorMsg('');
-    const res = await api.get(`/api/list`, {
-      params: { path },
-      signal: controller.signal,
-    });
-
-    if (res?.data?.ok) {
-      const normalized = (res.data.items || []).map((it) => ({
+    try {
+      const { data } = await axios.get(`${API_BASE}/api/list`, {
+        params: { path },
+        signal: controller.signal,
+      });
+      if (!data?.ok) throw new Error(data?.error || 'Failed to fetch.');
+      const normalized = (data.items || []).map((it) => ({
         name: it.name,
         size: it.size,
         isDirectory: !!it.isDirectory,
@@ -316,15 +308,15 @@ function SourcingAndPricingDisplay() {
       }));
       setItems(sortItems(normalized));
       setFolderSizes({});
-    } else {
-      setErrorMsg(res?.data?.error || 'Failed to load.');
+    } catch (err) {
+      if (axios.isCancel?.(err) || err?.name === 'CanceledError') return;
+      setErrorMsg(err?.message || 'Failed to load.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
     return () => controller.abort();
   }, [path]);
 
-  /* ===== Auto-fetch when path changes ===== */
   useEffect(() => {
     fetchList();
   }, [fetchList]);
@@ -355,16 +347,21 @@ function SourcingAndPricingDisplay() {
 
       try {
         let got = null;
-        const r1 = await api.get(`/api/size`, { params: { path: full } });
-        if (r1?.data?.ok && typeof r1.data.size === 'number')
-          got = r1.data.size;
-
-        if (got == null) {
-          const r2 = await api.get(`/api/folder/size`, {
+        try {
+          const r1 = await axios.get(`${API_BASE}/api/size`, {
             params: { path: full },
           });
-          if (r2?.data?.ok && typeof r2.data.size === 'number')
-            got = r2.data.size;
+          if (r1?.data?.ok && typeof r1.data.size === 'number')
+            got = r1.data.size;
+        } catch {}
+        if (got == null) {
+          try {
+            const r2 = await axios.get(`${API_BASE}/api/folder/size`, {
+              params: { path: full },
+            });
+            if (r2?.data?.ok && typeof r2.data.size === 'number')
+              got = r2.data.size;
+          } catch {}
         }
 
         if (!cancelled && got != null) {
@@ -411,7 +408,7 @@ function SourcingAndPricingDisplay() {
     });
   const clearSelection = () => setSelected(new Set());
 
-  // Map for quick lookup (used by bulk delete)
+  // Map for quick lookup (used by bulk delete & bulk download)
   const itemByKey = useMemo(
     () => new Map(items.map((it) => [joinPosix(path, it.name), it])),
     [items, path]
@@ -445,6 +442,16 @@ function SourcingAndPricingDisplay() {
     }
   };
 
+  // 👇 tap/single-click support (mobile-friendly)
+  const onRowClick = (item) => {
+    if (item.isDirectory) {
+      setPath((prev) => clampToBase(joinPosix(prev, item.name)));
+      clearSelection();
+    } else {
+      handlePreview(item);
+    }
+  };
+
   const goUp = () => {
     const base = normalizePath(START_PATH);
     if (normalizePath(path) === base) return;
@@ -459,6 +466,65 @@ function SourcingAndPricingDisplay() {
   };
 
   const refresh = () => fetchList();
+
+  /* ===== File ops (single-item) ===== */
+  const buildDownloadUrl = (filePath) =>
+    `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
+
+  // streaming endpoint for videos (supports HTTP Range)
+  const buildStreamUrl = (filePath) =>
+    `${API_BASE}/api/stream?path=${encodeURIComponent(filePath)}`;
+
+  const handleDownload = (item) => {
+    if (item.isDirectory) {
+      alert(
+        'Use "Download as ZIP" to download folders or use Download Selected.'
+      );
+      return;
+    }
+    const filePath = joinPosix(path, item.name);
+    triggerDownload(buildDownloadUrl(filePath), item.name);
+    setCtxOpen(false);
+  };
+
+  const zipAndDownloadFolder = async (folderName) => {
+    const fullPath = joinPosix(path, folderName);
+    try {
+      const { data } = await axios.post(`${API_BASE}/api/zip`, {
+        path: fullPath,
+      });
+      if (data && data.ok && data.downloadId) {
+        const url = `${API_BASE}/api/zip/${encodeURIComponent(
+          data.downloadId
+        )}`;
+        triggerDownload(url, data.filename || `${folderName}.zip`);
+      } else {
+        alert('ZIP creation failed: backend did not return a download link.');
+      }
+    } catch (e) {
+      alert(`ZIP creation failed: ${e?.message || 'unknown error'}`);
+    }
+  };
+
+  /* ===== Bulk download (desktop + mobile) ===== */
+  const downloadSelected = useCallback(async () => {
+    if (selected.size === 0) return;
+    const minimal = collapseSelection(Array.from(selected));
+
+    for (const fullPath of minimal) {
+      const it = itemByKey.get(fullPath);
+      if (!it) continue;
+      const name = fullPath.split('/').pop() || 'download';
+
+      if (it.isDirectory) {
+        await zipAndDownloadFolder(name);
+      } else {
+        triggerDownload(buildDownloadUrl(fullPath), name);
+      }
+    }
+
+    setCtxOpen(false);
+  }, [selected, itemByKey]);
 
   /* ===== Delete (open confirmation modal) ===== */
   const openConfirmDeleteSingle = (item) => {
@@ -491,12 +557,13 @@ function SourcingAndPricingDisplay() {
     try {
       if (confirmItems.length === 1) {
         const one = confirmItems[0];
-        const res = one.isDirectory
-          ? await api.delete(`/api/folder`, { data: { path: one.fullPath } })
-          : await api.delete(`/api/file`, { data: { path: one.fullPath } });
-
-        if (!res?.data?.ok) {
-          throw new Error(res?.data?.error || 'Delete failed.');
+        const res = await axios.post(
+          `${API_BASE}/api/delete`,
+          { path: one.fullPath },
+          { validateStatus: () => true }
+        );
+        if (!(res.status === 200 && res.data?.ok)) {
+          throw new Error(res.data?.error || 'Delete failed.');
         }
         setSelected((prev) => {
           const next = new Set(prev);
@@ -505,15 +572,13 @@ function SourcingAndPricingDisplay() {
         });
       } else {
         for (const it of confirmItems) {
-          const res = it.isDirectory
-            ? await api.delete(`/api/folder`, { data: { path: it.fullPath } })
-            : await api.delete(`/api/file`, { data: { path: it.fullPath } });
-          if (!res?.data?.ok) {
-            alert(
-              `Delete failed for "${it.name}": ${
-                res?.data?.error || 'Unknown error'
-              }`
-            );
+          const res = await axios.post(
+            `${API_BASE}/api/delete`,
+            { path: it.fullPath },
+            { validateStatus: () => true }
+          );
+          if (!(res.status === 200 && res.data?.ok)) {
+            throw new Error(res.data?.error || `Delete failed: ${it.name}`);
           }
         }
         clearSelection();
@@ -530,84 +595,30 @@ function SourcingAndPricingDisplay() {
     }
   };
 
-  /* ===== File ops (single-item only) ===== */
-  const buildDownloadUrl = (filePath) =>
-    `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
-
-  const handleDownload = (item) => {
-    if (item.isDirectory) {
-      alert('Use "Download as ZIP" to download folders.');
-      return;
-    }
-    const filePath = joinPosix(path, item.name);
-    triggerDownload(buildDownloadUrl(filePath), item.name);
-    setCtxOpen(false);
-  };
-
-  const zipAndDownloadFolder = async (folderName) => {
-    const fullPath = joinPosix(path, folderName);
-    const res = await api.post(`/api/zip`, { path: fullPath });
-    if (res?.data?.ok && res.data.downloadId) {
-      const url = `${API_BASE}/api/zip/${encodeURIComponent(
-        res.data.downloadId
-      )}`;
-      triggerDownload(url, res.data.filename || `${folderName}.zip`);
-    } else {
-      alert(`ZIP creation failed: ${res?.data?.error || 'unknown error'}`);
+  /* ===== Preview helpers (blob/object URL) ===== */
+  const revokeObjectUrl = () => {
+    if (objectUrlRef.current) {
+      try {
+        URL.revokeObjectURL(objectUrlRef.current);
+      } catch {}
+      objectUrlRef.current = '';
     }
   };
 
-  /* ===== Rename (fixed) ===== */
-  const isInvalidName = (name) => {
-    if (!name) return true;
-    if (name === '.' || name === '..') return true;
-    if (/[\\/]/.test(name)) return true; // no slashes/backslashes
-    if (/[\u0000-\u001F\u007F]/.test(name)) return true; // control chars
-    return false;
-  };
+  const fetchBlobUrl = async (filePath) => {
+    const res = await axios.get(`${API_BASE}/api/download`, {
+      params: { path: filePath },
+      responseType: 'blob',
+      validateStatus: () => true,
+    });
 
-  const openRename = (item) => {
-    setRenameValue(item?.name || '');
-    setRenameOpen(true);
-    setCtxOpen(false);
-    setCtxTarget(item);
-  };
-
-  const submitRename = async () => {
-    const item = ctxTarget;
-    const newName = (renameValue || '').trim();
-    if (!item) return;
-
-    if (!newName || newName === item.name) {
-      setRenameOpen(false);
-      return;
-    }
-    if (isInvalidName(newName)) {
-      alert(
-        'Invalid name. Avoid slashes/backslashes, "." or "..", and control characters.'
-      );
-      return;
+    if (!(res.status >= 200 && res.status < 300)) {
+      throw new Error(`Preview request failed (${res.status})`);
     }
 
-    setWorking(true);
-    const from = joinPosix(path, item.name);
-    const to = joinPosix(path, newName);
-    let res;
-
-    if (item.isDirectory) {
-      res = await api.put(`/api/folder`, { from, to, overwrite: false });
-    } else {
-      res = await api.post(`/api/file/rename`, { from, to, overwrite: false });
-    }
-
-    if (!res?.data?.ok) {
-      alert(`Rename failed: ${res?.data?.error || 'Unknown error'}`);
-    } else {
-      setRenameOpen(false);
-      setCtxTarget(null);
-      await fetchList();
-    }
-    setWorking(false);
+    const ct = res.headers?.['content-type'] || 'application/octet-stream';
+    const blob = new Blob([res.data], { type: ct });
+    return { url: URL.createObjectURL(blob), type: ct };
   };
 
   /* ===== Preview ===== */
@@ -615,17 +626,20 @@ function SourcingAndPricingDisplay() {
     if (item.isDirectory) return;
     const filePath = joinPosix(path, item.name);
 
+    revokeObjectUrl();
+
     try {
-      // SVG text -> blob for safe preview
+      // SVG
       if (isSvg(item.name)) {
-        const res = await api.get(`/api/file/content`, {
+        const { data } = await axios.get(`${API_BASE}/api/file/content`, {
           params: { path: filePath, encoding: 'utf8' },
+          validateStatus: () => true,
         });
-        if (!res?.data?.ok)
-          throw new Error(res?.data?.error || 'Preview failed.');
-        const svgText = String(res.data.content || '');
-        const blob = new Blob([svgText], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(blob);
+        if (!data?.ok) throw new Error(data?.error || 'Preview failed.');
+        const svgText = String(data.content || '');
+        const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(svgBlob);
+        objectUrlRef.current = url;
         setPreviewData({
           type: 'svg',
           url,
@@ -634,13 +648,11 @@ function SourcingAndPricingDisplay() {
           mime: '',
         });
         setPreviewOpen(true);
-        setCtxOpen(false);
-        return;
       }
-
-      const url = buildDownloadUrl(filePath);
-
-      if (isImg(item.name)) {
+      // Image (non-SVG)
+      else if (isImg(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
         setPreviewData({
           type: 'image',
           url,
@@ -649,10 +661,11 @@ function SourcingAndPricingDisplay() {
           mime: '',
         });
         setPreviewOpen(true);
-        setCtxOpen(false);
-        return;
       }
-      if (isPdf(item.name)) {
+      // PDF
+      else if (isPdf(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
         setPreviewData({
           type: 'pdf',
           url,
@@ -661,10 +674,11 @@ function SourcingAndPricingDisplay() {
           mime: '',
         });
         setPreviewOpen(true);
-        setCtxOpen(false);
-        return;
       }
-      if (isAud(item.name)) {
+      // Audio
+      else if (isAud(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
         setPreviewData({
           type: 'audio',
           url,
@@ -673,22 +687,23 @@ function SourcingAndPricingDisplay() {
           mime: '',
         });
         setPreviewOpen(true);
-        setCtxOpen(false);
-        return;
       }
-      if (isVid(item.name)) {
+      // Video — stream directly to enable HTTP Range (seeking)
+      else if (isVid(item.name)) {
+        const streamUrl = buildStreamUrl(filePath);
         setPreviewData({
           type: 'video',
-          url,
+          url: streamUrl,
           text: '',
           name: item.name,
           mime: guessVideoMime(item.name),
         });
         setPreviewOpen(true);
-        setCtxOpen(false);
-        return;
       }
-      if (isHtml(item.name)) {
+      // HTML (sandboxed)
+      else if (isHtml(item.name)) {
+        const { url } = await fetchBlobUrl(filePath);
+        objectUrlRef.current = url;
         setPreviewData({
           type: 'iframe',
           url,
@@ -697,13 +712,13 @@ function SourcingAndPricingDisplay() {
           mime: '',
         });
         setPreviewOpen(true);
-        setCtxOpen(false);
-        return;
       }
-      if (isOffice(item.name)) {
+      // Office via Microsoft viewer
+      else if (isOffice(item.name)) {
+        const publicUrl = buildDownloadUrl(filePath);
         const officeViewerUrl =
           'https://view.officeapps.live.com/op/embed.aspx?src=' +
-          encodeURIComponent(url);
+          encodeURIComponent(publicUrl);
         setPreviewData({
           type: 'office',
           url: officeViewerUrl,
@@ -712,43 +727,51 @@ function SourcingAndPricingDisplay() {
           mime: '',
         });
         setPreviewOpen(true);
-        setCtxOpen(false);
-        return;
       }
-      if (isTxt(item.name)) {
-        const res = await api.get(`/api/file/content`, {
+      // Text-like
+      else if (isTxt(item.name)) {
+        const { data } = await axios.get(`${API_BASE}/api/file/content`, {
           params: { path: filePath, encoding: 'utf8' },
+          validateStatus: () => true,
         });
-        if (!res?.data?.ok) {
-          alert(`Preview failed: ${res?.data?.error || 'Unknown error'}`);
-        } else {
-          setPreviewData({
-            type: 'text',
-            url: '',
-            text: String(res.data.content || ''),
-            name: item.name,
-            mime: '',
-          });
-          setPreviewOpen(true);
-        }
-        setCtxOpen(false);
-        return;
+        if (!data?.ok) throw new Error(data?.error || 'Preview failed.');
+        setPreviewData({
+          type: 'text',
+          url: '',
+          text: String(data.content || ''),
+          name: item.name,
+          mime: '',
+        });
+        setPreviewOpen(true);
       }
-
-      // Fallback: download
-      handleDownload(item);
-      setCtxOpen(false);
+      // Fallback
+      else {
+        const rawUrl = buildDownloadUrl(filePath);
+        window.open(rawUrl, '_blank', 'noopener,noreferrer');
+      }
     } catch (err) {
+      revokeObjectUrl();
       alert(`Preview failed: ${err?.message || 'Unknown error'}`);
+    } finally {
       setCtxOpen(false);
     }
   };
 
-  // Minimal folder obj for CreateFolder component (it reads fullPath/name)
-  const currentFolderObj = {
-    fullPath: path,
-    name: path.split('/').filter(Boolean).pop() || 'sourcing-pricing',
-  };
+  useEffect(() => {
+    if (!previewOpen) {
+      revokeObjectUrl();
+      setPreviewData((p) => ({ ...p, url: '' }));
+    }
+    return () => revokeObjectUrl();
+  }, [previewOpen]);
+
+  /* ===== Folder upload success hook ===== */
+  const handleFolderUploaded = useCallback(() => {
+    setSuccessMsg('The folder uploaded successfully');
+    fetchList();
+    const t = setTimeout(() => setSuccessMsg(''), 3000);
+    return () => clearTimeout(t);
+  }, [fetchList]);
 
   /* ===== Filtered list (search) ===== */
   const normalizedQuery = searchTerm.trim().toLowerCase();
@@ -776,7 +799,7 @@ function SourcingAndPricingDisplay() {
     );
   };
 
-  /* ===== toggleAll (respects search results) ===== */
+  /* ===== Toggle-all respects search results ===== */
   const toggleAll = useCallback(() => {
     if (visibleItems.length === 0) return;
     setSelected((prev) => {
@@ -786,408 +809,464 @@ function SourcingAndPricingDisplay() {
     });
   }, [visibleItems, path]);
 
+  /* ===== RENAME ===== */
+  const openRename = useCallback((item) => {
+    setCtxOpen(false);
+    setCtxTarget(item);
+    setRenameValue(item?.name || '');
+    setRenameOpen(true);
+  }, []);
+
+  const submitRename = useCallback(async () => {
+    if (!ctxTarget) return;
+    const newName = (renameValue || '').trim();
+
+    if (!newName) {
+      alert('Please enter a new name.');
+      return;
+    }
+    if (/[\\/]/.test(newName)) {
+      alert('Name cannot include slashes.');
+      return;
+    }
+    if (newName === ctxTarget.name) {
+      setRenameOpen(false);
+      return;
+    }
+
+    setWorking(true);
+    try {
+      const fromPath = joinPosix(path, ctxTarget.name);
+
+      if (ctxTarget.isDirectory) {
+        const toPath = joinPosix(path, newName);
+        const res = await axios.put(
+          `${API_BASE}/api/folder`,
+          { from: fromPath, to: toPath, overwrite: false },
+          { validateStatus: () => true }
+        );
+        if (!(res.status === 200 && res.data?.ok)) {
+          throw new Error(res.data?.error || 'Folder rename failed.');
+        }
+      } else {
+        const res = await axios.post(
+          `${API_BASE}/api/file/rename`,
+          { from: fromPath, newName, overwrite: false },
+          { validateStatus: () => true }
+        );
+        if (!(res.status === 200 && res.data?.ok)) {
+          throw new Error(res.data?.error || 'File rename failed.');
+        }
+      }
+
+      setRenameOpen(false);
+      setCtxTarget(null);
+      await fetchList();
+    } catch (err) {
+      alert(err?.message || 'Rename failed.');
+    } finally {
+      setWorking(false);
+    }
+  }, [ctxTarget, renameValue, path, fetchList]);
+
   /* ================= Render ================= */
   return (
     <div className="libd-root">
-      {/* Toolbar wrapper */}
-      <div className="libd-toolbar" style={{ display: 'block', width: '100%' }}>
-        {/* Row 1: Breadcrumb path */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 10,
-            flexWrap: 'wrap',
-          }}
-        >
-          <BredCrum
-            className="libd-breadcrumb"
-            path={path}
-            onNavigate={(p) => {
-              const target = p === '/' ? START_PATH : p;
-              setPath(clampToBase(target));
-              clearSelection();
-            }}
-            title={path}
-          />
-        </div>
-
-        {/* Row 2: ALL BUTTONS RIGHT */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            justifyContent: 'flex-end',
-            flexWrap: 'wrap',
-            marginBottom: 8,
-          }}
-        >
-          <div className="libd-actions" style={{ marginLeft: 0 }}>
-            <SourcingAndPricingUploadFile
-              currentPath={path}
-              onFileUploaded={fetchList}
-            />
-            <SourcingAndPricingUploadFolder
-              currentPath={path}
-              onFolderUploaded={fetchList}
-            />
-            {/* 🔧 Ensure auto-refresh after creating a folder */}
-            <SourcingAndPricingCreateFolder
-              currentFolder={currentFolderObj}
-              onLibraryCreateFolder={fetchList}
-              buttonVariant="outline-dark"
-            />
-            <button onClick={goUp} title="Up" className="libd-pill">
-              ⬆ Up
-            </button>
-            <button onClick={refresh} title="Refresh" className="libd-pill">
-              🔄 Refresh
-            </button>
-            <button
-              onClick={openConfirmDeleteBulk}
-              disabled={selected.size === 0 || working}
-              className="libd-pill libd-danger"
-              title="Delete selected"
-            >
-              🗑 Delete Selected ({selected.size})
-            </button>
-          </div>
-        </div>
-
-        {/* Row 3: Search input (left-aligned) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            marginBottom: 12,
-          }}
-        >
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="libd-input"
-            placeholder="Search in this folder…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setSearchTerm('');
-            }}
-            aria-label="Search files and folders in this folder"
-            style={{ width: 'min(420px, 90vw)' }}
-          />
-        </div>
-      </div>
-
-      {/* Optional search hint */}
-      {normalizedQuery && (
-        <div className="libd-muted" style={{ marginBottom: 8 }}>
-          Showing {visibleItems.length} of {items.length} in this folder for{' '}
-          <strong>“{searchTerm}”</strong>
-          {visibleItems.length === 0 ? ' — no matches found.' : ''}
-        </div>
-      )}
-
-      {/* Errors / Loading */}
-      {errorMsg && (
-        <div className="libd-alert libd-alert-error">{errorMsg}</div>
-      )}
-      {loading && <div className="libd-alert libd-alert-info">Loading…</div>}
-
-      {/* Table with sticky header + vertically scrollable body */}
-      <div className="libd-table">
-        {/* Header row */}
-        <div className="libd-thead">
-          <input
-            type="checkbox"
-            aria-label="Select all"
-            checked={
-              visibleItems.length > 0 &&
-              visibleItems.every((it) => selected.has(joinPosix(path, it.name)))
-            }
-            onChange={(e) => {
-              e.stopPropagation();
-              toggleAll();
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div>Name</div>
-          <div className="libd-right">Size</div>
-          <div className="libd-right libd-col-mod">Last modified</div>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="libd-tbody-scroll">
-          {visibleItems.length === 0 && !loading ? (
-            <div className="libd-empty" role="status">
-              {normalizedQuery
-                ? 'No matching files or folders.'
-                : 'There is no file and folder'}
-            </div>
-          ) : (
-            visibleItems.map((item) => {
-              const k = keyOf(item);
-              const full = joinPosix(path, item.name);
-              const sizeToShow = item.isDirectory
-                ? typeof item.size === 'number'
-                  ? item.size
-                  : folderSizes[full]
-                : item.size;
-              return (
-                <div
-                  key={k}
-                  onDoubleClick={() => onRowDoubleClick(item)}
-                  onContextMenu={(e) => onRowContextMenu(e, item)}
-                  className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${item.name}`}
-                    checked={isSelected(k)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      toggleOne(k);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <div className="libd-name" title={item.name}>
-                    <FontAwesomeIcon
-                      icon={item.isDirectory ? faFolder : faFile}
-                      className={`libd-fa ${
-                        item.isDirectory ? 'libd-folder' : 'libd-file'
-                      }`}
-                      style={
-                        item.isDirectory ? { color: '#f4c20d' } : undefined
-                      }
-                    />
-                    {renderHighlightedName(item.name)}
-                  </div>
-                  <div className="libd-right libd-muted">
-                    {typeof sizeToShow === 'number'
-                      ? fmtBytes(sizeToShow)
-                      : '—'}
-                  </div>
-                  <div className="libd-right libd-muted libd-col-mod">
-                    {fmtDate(item.modifiedAt)}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* Context Menu */}
-      {ctxOpen && ctxTarget && (
-        <div
-          ref={ctxRef}
-          className="libd-menu"
-          style={{ top: ctxPos.y, left: ctxPos.x }}
-        >
-          <div className="libd-menu-title">
-            {ctxTarget.isDirectory ? 'Folder' : 'File'}: {ctxTarget.name}
-          </div>
-
-          {ctxTarget.isDirectory ? (
-            <>
-              <button
-                onClick={async () => {
-                  try {
-                    await zipAndDownloadFolder(ctxTarget.name);
-                  } finally {
-                    setCtxOpen(false);
-                  }
-                }}
-                className="libd-menu-btn"
-              >
-                ⬇️ Download as ZIP
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => handlePreview(ctxTarget)}
-                className="libd-menu-btn"
-              >
-                👁 Preview
-              </button>
-              <button
-                onClick={() => handleDownload(ctxTarget)}
-                className="libd-menu-btn"
-              >
-                ⬇️ Download
-              </button>
-            </>
-          )}
-
-          <button
-            onClick={() => openRename(ctxTarget)}
-            className="libd-menu-btn"
-          >
-            ✏️ Rename
-          </button>
-          <button
-            onClick={() => openConfirmDeleteSingle(ctxTarget)}
-            disabled={working}
-            className="libd-menu-btn libd-menu-danger"
-          >
-            🗑 Delete…
-          </button>
-        </div>
-      )}
-
-      {/* Preview Modal */}
-      {previewOpen && (
-        <Modal
-          onClose={() => setPreviewOpen(false)}
-          title={previewData.name ? `Preview — ${previewData.name}` : 'Preview'}
-        >
-          {/* SVG */}
-          {previewData.type === 'svg' && (
-            <div className="libd-preview-media">
-              <object
-                data={previewData.url}
-                type="image/svg+xml"
-                className="libd-preview-object"
-                aria-label="SVG preview"
-              >
-                <img src={previewData.url} alt="SVG preview" />
-              </object>
-            </div>
-          )}
-
-          {previewData.type === 'image' && (
-            <img
-              src={previewData.url}
-              alt="preview"
-              className="libd-preview-media"
-            />
-          )}
-
-          {previewData.type === 'pdf' && (
-            <iframe
-              title="pdf"
-              src={previewData.url}
-              className="libd-preview-pdf"
-            />
-          )}
-
-          {previewData.type === 'audio' && (
-            <audio controls className="libd-preview-audio" preload="metadata">
-              <source src={previewData.url} />
-              Your browser does not support the audio element.
-            </audio>
-          )}
-
-          {/* ✅ Fixed video preview */}
-          {previewData.type === 'video' && (
-            <video
-              key={previewData.url} /* force reload when URL changes */
-              controls
-              playsInline
-              preload="metadata"
-              className="libd-preview-media"
-              style={{ pointerEvents: 'auto' }}
-              onError={() => {
-                try {
-                  window.open(previewData.url, '_blank', 'noopener,noreferrer');
-                } catch {}
+      <div className="libd-shell">
+        {/* Toolbar wrapper */}
+        <div className="libd-toolbar">
+          {/* Row 1: Breadcrumb path */}
+          <div className="libd-toolbar-row">
+            <BredCrum
+              className="libd-breadcrumb"
+              path={path}
+              onNavigate={(p) => {
+                const target = p === '/' ? START_PATH : p;
+                setPath(clampToBase(target));
+                clearSelection();
               }}
-            >
-              <source
-                src={previewData.url}
-                type={previewData.mime || 'video/mp4'}
+              title={path}
+            />
+          </div>
+
+          {/* Row 2: Buttons + Search */}
+          <div className="libd-toolbar-row libd-toolbar-actions">
+            <div className="libd-actions">
+              <SourcingAndPricingUploadFile
+                currentPath={path}
+                onFileUploaded={fetchList}
               />
-              Your browser does not support the video element.
-            </video>
-          )}
+              <SourcingAndPricingUploadFolder
+                currentPath={path}
+                onFolderUploaded={handleFolderUploaded}
+              />
+              <SourcingAndPricingCreateFolder
+                currentFolder={{
+                  fullPath: path,
+                  name:
+                    path.split('/').filter(Boolean).pop() || 'sourcing-pricing',
+                }}
+                onSourcingAndPricingCreateFolder={fetchList}
+                buttonVariant="outline-dark"
+              />
+              <button onClick={goUp} title="Up" className="libd-pill">
+                ⬆ Up
+              </button>
+              <button onClick={refresh} title="Refresh" className="libd-pill">
+                🔄 Refresh
+              </button>
+              <button
+                onClick={downloadSelected}
+                disabled={selected.size === 0 || working}
+                className="libd-pill"
+                title="Download selected"
+              >
+                ⬇ Download Selected ({selected.size})
+              </button>
+              <button
+                onClick={openConfirmDeleteBulk}
+                disabled={selected.size === 0 || working}
+                className="libd-pill libd-danger"
+                title="Delete selected"
+              >
+                🗑 Delete Selected ({selected.size})
+              </button>
+            </div>
 
-          {previewData.type === 'iframe' && (
-            <iframe
-              title="html"
-              src={previewData.url}
-              className="libd-preview-pdf"
-              sandbox="allow-same-origin allow-forms allow-scripts"
-            />
-          )}
-
-          {previewData.type === 'office' && (
-            <iframe
-              title="office"
-              src={previewData.url}
-              className="libd-preview-pdf"
-            />
-          )}
-
-          {previewData.type === 'text' && (
-            <pre className="libd-preview-text">{previewData.text}</pre>
-          )}
-          <div className="libd-modal-actions">
-            <button
-              onClick={() => setPreviewOpen(false)}
-              className="libd-btn-primary"
-            >
-              Close
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Rename Modal */}
-      {renameOpen && ctxTarget && (
-        <Modal
-          onClose={() => setRenameOpen(false)}
-          title={`Rename ${ctxTarget.isDirectory ? 'Folder' : 'File'}`}
-        >
-          <div className="libd-field">
-            <label className="libd-label">New name</label>
             <input
+              ref={searchInputRef}
               type="text"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              className="libd-input"
-              autoFocus
+              className="libd-input libd-input-search"
+              placeholder="Search in this folder…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') submitRename();
-                if (e.key === 'Escape') setRenameOpen(false);
+                if (e.key === 'Escape') setSearchTerm('');
               }}
+              aria-label="Search files and folders in this folder"
             />
           </div>
-          <div className="libd-modal-actions libd-gap">
+        </div>
+
+        {/* Notices */}
+        {successMsg && (
+          <div className="libd-alert libd-alert-success" role="status">
+            {successMsg}
+          </div>
+        )}
+        {errorMsg && (
+          <div className="libd-alert libd-alert-error">{errorMsg}</div>
+        )}
+        {loading && <div className="libd-alert libd-alert-info">Loading…</div>}
+
+        {/* ================== Scrollable table ================== */}
+        <div className="libd-table">
+          {/* Header row */}
+          <div className="libd-thead">
+            <input
+              type="checkbox"
+              aria-label="Select all"
+              checked={
+                visibleItems.length > 0 &&
+                visibleItems.every((it) =>
+                  selected.has(joinPosix(path, it.name))
+                )
+              }
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleAll();
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div>Name</div>
+            <div className="libd-right">Size</div>
+            <div className="libd-right libd-col-mod">Last modified</div>
+          </div>
+
+          {/* Body with its own vertical scrollbar */}
+          <div className="libd-tbody-scroll">
+            {visibleItems.length === 0 && !loading ? (
+              <div className="libd-empty" role="status">
+                {normalizedQuery
+                  ? 'No matching files or folders.'
+                  : 'No files or folders'}
+              </div>
+            ) : (
+              visibleItems.map((item) => {
+                const k = keyOf(item);
+                const full = joinPosix(path, item.name);
+                const sizeToShow = item.isDirectory
+                  ? typeof item.size === 'number'
+                    ? item.size
+                    : folderSizes[full]
+                  : item.size;
+                return (
+                  <div
+                    key={k}
+                    onClick={() => onRowClick(item)}
+                    onDoubleClick={() => onRowDoubleClick(item)}
+                    onContextMenu={(e) => onRowContextMenu(e, item)}
+                    className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${item.name}`}
+                      checked={isSelected(k)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleOne(k);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+
+                    {/* Name */}
+                    <div className="libd-name" title={item.name}>
+                      <FontAwesomeIcon
+                        icon={item.isDirectory ? faFolder : faFile}
+                        className={`libd-fa ${
+                          item.isDirectory ? 'libd-folder' : 'libd-file'
+                        }`}
+                      />
+                      {renderHighlightedName(item.name)}
+                    </div>
+
+                    {/* Size */}
+                    <div className="libd-right libd-muted" data-label="Size">
+                      {typeof sizeToShow === 'number'
+                        ? fmtBytes(sizeToShow)
+                        : '—'}
+                    </div>
+
+                    {/* Last modified */}
+                    <div
+                      className="libd-right libd-muted libd-col-mod"
+                      data-label="Last modified"
+                    >
+                      {fmtDate(item.modifiedAt)}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Context Menu */}
+        {ctxOpen && ctxTarget && (
+          <div
+            ref={ctxRef}
+            className="libd-menu"
+            style={{ top: ctxPos.y, left: ctxPos.x }}
+          >
+            <div className="libd-menu-title">
+              {ctxTarget.isDirectory ? 'Folder' : 'File'}: {ctxTarget.name}
+            </div>
+
+            {ctxTarget.isDirectory ? (
+              <>
+                <button
+                  onClick={async () => {
+                    try {
+                      await zipAndDownloadFolder(ctxTarget.name);
+                    } finally {
+                      setCtxOpen(false);
+                    }
+                  }}
+                  className="libd-menu-btn"
+                >
+                  ⬇️ Download as ZIP
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => handlePreview(ctxTarget)}
+                  className="libd-menu-btn"
+                >
+                  👁 Preview
+                </button>
+                <button
+                  onClick={() => handleDownload(ctxTarget)}
+                  className="libd-menu-btn"
+                >
+                  ⬇️ Download
+                </button>
+              </>
+            )}
+
             <button
-              onClick={() => setRenameOpen(false)}
-              className="libd-btn-secondary"
+              onClick={() => openRename(ctxTarget)}
+              className="libd-menu-btn"
             >
-              Cancel
+              ✏️ Rename
             </button>
-            <button onClick={submitRename} className="libd-btn-primary">
-              Save
+            <button
+              onClick={() => openConfirmDeleteSingle(ctxTarget)}
+              disabled={working}
+              className="libd-menu-btn libd-menu-danger"
+            >
+              🗑 Delete…
             </button>
           </div>
-        </Modal>
-      )}
+        )}
 
-      {/* Confirm Delete Modal (single + bulk) */}
-      <ConfirmDeleteModal
-        open={confirmOpen}
-        items={confirmItems}
-        submitting={confirmSubmitting}
-        onCancel={() => {
-          if (!confirmSubmitting) {
-            setConfirmOpen(false);
-            setConfirmItems([]);
-          }
-        }}
-        onConfirm={performDelete}
-      />
+        {/* Preview Modal */}
+        {previewOpen && (
+          <Modal
+            onClose={() => setPreviewOpen(false)}
+            title={
+              previewData.name ? `Preview — ${previewData.name}` : 'Preview'
+            }
+          >
+            {/* SVG */}
+            {previewData.type === 'svg' && (
+              <div className="libd-preview-media">
+                <object
+                  data={previewData.url}
+                  type="image/svg+xml"
+                  className="libd-preview-object"
+                  aria-label="SVG preview"
+                >
+                  <img src={previewData.url} alt="SVG preview" />
+                </object>
+              </div>
+            )}
+
+            {previewData.type === 'image' && (
+              <img
+                src={previewData.url}
+                alt="preview"
+                className="libd-preview-media"
+              />
+            )}
+
+            {previewData.type === 'pdf' && (
+              <iframe
+                title="pdf"
+                src={previewData.url}
+                className="libd-preview-pdf"
+              />
+            )}
+
+            {previewData.type === 'audio' && (
+              <audio controls className="libd-preview-audio" preload="metadata">
+                <source src={previewData.url} />
+                Your browser does not support the audio element.
+              </audio>
+            )}
+
+            {/* Video preview with native controller (HTTP Range via stream URL) */}
+            {previewData.type === 'video' && (
+              <video
+                key={previewData.url}
+                controls
+                playsInline
+                preload="metadata"
+                className="libd-preview-video libd-preview-media"
+                style={{ pointerEvents: 'auto' }}
+                onError={() => {
+                  try {
+                    window.open(
+                      previewData.url,
+                      '_blank',
+                      'noopener,noreferrer'
+                    );
+                  } catch {}
+                }}
+              >
+                <source
+                  src={previewData.url}
+                  type={previewData.mime || 'video/mp4'}
+                />
+                Your browser does not support the video tag.
+              </video>
+            )}
+
+            {previewData.type === 'iframe' && (
+              <iframe
+                title="html"
+                src={previewData.url}
+                className="libd-preview-pdf"
+                sandbox="allow-same-origin allow-forms allow-scripts"
+              />
+            )}
+
+            {/* Office Online viewer */}
+            {previewData.type === 'office' && (
+              <iframe
+                title="office"
+                src={previewData.url}
+                className="libd-preview-pdf"
+              />
+            )}
+
+            {previewData.type === 'text' && (
+              <pre className="libd-preview-text">{previewData.text}</pre>
+            )}
+
+            <div className="libd-modal-actions">
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="libd-btn-primary"
+              >
+                Close
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {/* Rename Modal */}
+        {renameOpen && ctxTarget && (
+          <Modal
+            onClose={() => setRenameOpen(false)}
+            title={`Rename ${ctxTarget.isDirectory ? 'Folder' : 'File'}`}
+          >
+            <div className="libd-field">
+              <label className="libd-label">New name</label>
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                className="libd-input"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitRename();
+                  if (e.key === 'Escape') setRenameOpen(false);
+                }}
+              />
+            </div>
+            <div className="libd-modal-actions libd-gap">
+              <button
+                onClick={() => setRenameOpen(false)}
+                className="libd-btn-secondary"
+              >
+                Cancel
+              </button>
+              <button onClick={submitRename} className="libd-btn-primary">
+                Save
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {/* Confirm Delete Modal (single + bulk) */}
+        <ConfirmDeleteModal
+          open={confirmOpen}
+          items={confirmItems}
+          submitting={confirmSubmitting}
+          onCancel={() => {
+            if (!confirmSubmitting) {
+              setConfirmOpen(false);
+              setConfirmItems([]);
+            }
+          }}
+          onConfirm={performDelete}
+        />
+      </div>
     </div>
   );
 }
 
-SourcingAndPricingDisplay.propTypes = {
-  defaultView: PropTypes.oneOf(['files', 'folders']),
-};
+SourcingAndPricingDisplay.propTypes = {};
 
 export default SourcingAndPricingDisplay;

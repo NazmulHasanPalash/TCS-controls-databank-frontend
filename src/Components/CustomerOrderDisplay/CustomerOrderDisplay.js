@@ -14,7 +14,6 @@ import BredCrum from '../BreadCrum/BreadCrum';
 import CustomerOrderUploadFolder from '../CustomerOrderUploadFolder/CustomerOrderUploadFolder';
 import CustomerOrderCreateFolder from '../CustomerOrderCreateFolder/CustomerOrderCreateFolder';
 import CustomerOrderUploadFile from '../CustomerOrderUploadFile/CustomerOrderUploadFile';
-
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFile } from '@fortawesome/free-solid-svg-icons';
 
@@ -99,7 +98,6 @@ const sortItems = (items) =>
     });
   });
 
-/** Ensure navigation cannot go above START_PATH */
 const clampToBase = (targetPath) => {
   const base = normalizePath(START_PATH);
   if (!targetPath) return base;
@@ -108,7 +106,6 @@ const clampToBase = (targetPath) => {
   return normalized.startsWith(base) ? normalized : base;
 };
 
-/** Trigger a browser download */
 const triggerDownload = (url, filename) => {
   const a = document.createElement('a');
   a.href = url;
@@ -411,7 +408,7 @@ function CustomerOrderDisplay() {
     });
   const clearSelection = () => setSelected(new Set());
 
-  // Map for quick lookup (used by bulk delete)
+  // Map for quick lookup (used by bulk delete & bulk download)
   const itemByKey = useMemo(
     () => new Map(items.map((it) => [joinPosix(path, it.name), it])),
     [items, path]
@@ -445,6 +442,16 @@ function CustomerOrderDisplay() {
     }
   };
 
+  // 👇 tap/single-click support (mobile-friendly)
+  const onRowClick = (item) => {
+    if (item.isDirectory) {
+      setPath((prev) => clampToBase(joinPosix(prev, item.name)));
+      clearSelection();
+    } else {
+      handlePreview(item);
+    }
+  };
+
   const goUp = () => {
     const base = normalizePath(START_PATH);
     if (normalizePath(path) === base) return;
@@ -464,13 +471,15 @@ function CustomerOrderDisplay() {
   const buildDownloadUrl = (filePath) =>
     `${API_BASE}/api/download?path=${encodeURIComponent(filePath)}`;
 
-  // ✅ Stream endpoint for videos to support HTTP Range requests (seeking)
+  // streaming endpoint for videos (supports HTTP Range)
   const buildStreamUrl = (filePath) =>
     `${API_BASE}/api/stream?path=${encodeURIComponent(filePath)}`;
 
   const handleDownload = (item) => {
     if (item.isDirectory) {
-      alert('Use "Download as ZIP" to download folders.');
+      alert(
+        'Use "Download as ZIP" to download folders or use Download Selected.'
+      );
       return;
     }
     const filePath = joinPosix(path, item.name);
@@ -496,6 +505,26 @@ function CustomerOrderDisplay() {
       alert(`ZIP creation failed: ${e?.message || 'unknown error'}`);
     }
   };
+
+  /* ===== Bulk download (desktop + mobile) ===== */
+  const downloadSelected = useCallback(async () => {
+    if (selected.size === 0) return;
+    const minimal = collapseSelection(Array.from(selected));
+
+    for (const fullPath of minimal) {
+      const it = itemByKey.get(fullPath);
+      if (!it) continue;
+      const name = fullPath.split('/').pop() || 'download';
+
+      if (it.isDirectory) {
+        await zipAndDownloadFolder(name);
+      } else {
+        triggerDownload(buildDownloadUrl(fullPath), name);
+      }
+    }
+
+    setCtxOpen(false);
+  }, [selected, itemByKey]);
 
   /* ===== Delete (open confirmation modal) ===== */
   const openConfirmDeleteSingle = (item) => {
@@ -659,7 +688,7 @@ function CustomerOrderDisplay() {
         });
         setPreviewOpen(true);
       }
-      // ✅ VIDEO — use streaming URL to enable seeking/fast start (no blob)
+      // Video — stream directly to enable HTTP Range (seeking)
       else if (isVid(item.name)) {
         const streamUrl = buildStreamUrl(filePath);
         setPreviewData({
@@ -843,377 +872,397 @@ function CustomerOrderDisplay() {
   /* ================= Render ================= */
   return (
     <div className="libd-root">
-      {/* Toolbar wrapper */}
-      <div className="libd-toolbar">
-        {/* Row 1: Breadcrumb path */}
-        <div className="libd-toolbar-row">
-          <BredCrum
-            className="libd-breadcrumb"
-            path={path}
-            onNavigate={(p) => {
-              const target = p === '/' ? START_PATH : p;
-              setPath(clampToBase(target));
-              clearSelection();
-            }}
-            title={path}
-          />
-        </div>
-
-        {/* Row 2: Buttons + Search */}
-        <div className="libd-toolbar-row libd-toolbar-actions">
-          <div className="libd-actions">
-            <CustomerOrderUploadFile
-              currentPath={path}
-              onFileUploaded={fetchList}
-            />
-            <CustomerOrderUploadFolder
-              currentPath={path}
-              onFolderUploaded={handleFolderUploaded}
-            />
-            <CustomerOrderCreateFolder
-              currentFolder={{
-                fullPath: path,
-                name: path.split('/').filter(Boolean).pop() || 'customer-order',
+      <div className="libd-shell">
+        {/* Toolbar wrapper */}
+        <div className="libd-toolbar">
+          {/* Row 1: Breadcrumb path */}
+          <div className="libd-toolbar-row">
+            <BredCrum
+              className="libd-breadcrumb"
+              path={path}
+              onNavigate={(p) => {
+                const target = p === '/' ? START_PATH : p;
+                setPath(clampToBase(target));
+                clearSelection();
               }}
-              onCustomerOrderCreateFolder={fetchList}
-              buttonVariant="outline-dark"
+              title={path}
             />
-            <button onClick={goUp} title="Up" className="libd-pill">
-              ⬆ Up
-            </button>
-            <button onClick={refresh} title="Refresh" className="libd-pill">
-              🔄 Refresh
-            </button>
-            <button
-              onClick={openConfirmDeleteBulk}
-              disabled={selected.size === 0 || working}
-              className="libd-pill libd-danger"
-              title="Delete selected"
-            >
-              🗑 Delete Selected ({selected.size})
-            </button>
           </div>
 
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="libd-input libd-input-search"
-            placeholder="Search in this folder…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setSearchTerm('');
-            }}
-            aria-label="Search files and folders in this folder"
-          />
-        </div>
-      </div>
-
-      {/* Notices */}
-      {successMsg && (
-        <div className="libd-alert libd-alert-success" role="status">
-          {successMsg}
-        </div>
-      )}
-      {errorMsg && (
-        <div className="libd-alert libd-alert-error">{errorMsg}</div>
-      )}
-      {loading && <div className="libd-alert libd-alert-info">Loading…</div>}
-
-      {/* ================== Scrollable table ================== */}
-      <div className="libd-table">
-        {/* Header row */}
-        <div className="libd-thead">
-          <input
-            type="checkbox"
-            aria-label="Select all"
-            checked={
-              visibleItems.length > 0 &&
-              visibleItems.every((it) => selected.has(joinPosix(path, it.name)))
-            }
-            onChange={(e) => {
-              e.stopPropagation();
-              toggleAll();
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div>Name</div>
-          <div className="libd-right">Size</div>
-          <div className="libd-right libd-col-mod">Last modified</div>
-        </div>
-
-        {/* Body with its own vertical scrollbar */}
-        <div className="libd-tbody-scroll">
-          {visibleItems.length === 0 && !loading ? (
-            <div className="libd-empty" role="status">
-              {normalizedQuery
-                ? 'No matching files or folders.'
-                : 'No files or folders'}
-            </div>
-          ) : (
-            visibleItems.map((item) => {
-              const k = keyOf(item);
-              const full = joinPosix(path, item.name);
-              const sizeToShow = item.isDirectory
-                ? typeof item.size === 'number'
-                  ? item.size
-                  : folderSizes[full]
-                : item.size;
-              return (
-                <div
-                  key={k}
-                  onDoubleClick={() => onRowDoubleClick(item)}
-                  onContextMenu={(e) => onRowContextMenu(e, item)}
-                  className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${item.name}`}
-                    checked={isSelected(k)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      toggleOne(k);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-
-                  {/* Name */}
-                  <div className="libd-name" title={item.name}>
-                    <FontAwesomeIcon
-                      icon={item.isDirectory ? faFolder : faFile}
-                      className={`libd-fa ${
-                        item.isDirectory ? 'libd-folder' : 'libd-file'
-                      }`}
-                    />
-                    {renderHighlightedName(item.name)}
-                  </div>
-
-                  {/* Size */}
-                  <div className="libd-right libd-muted" data-label="Size">
-                    {typeof sizeToShow === 'number'
-                      ? fmtBytes(sizeToShow)
-                      : '—'}
-                  </div>
-
-                  {/* Last modified */}
-                  <div
-                    className="libd-right libd-muted libd-col-mod"
-                    data-label="Last modified"
-                  >
-                    {fmtDate(item.modifiedAt)}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* Context Menu */}
-      {ctxOpen && ctxTarget && (
-        <div
-          ref={ctxRef}
-          className="libd-menu"
-          style={{ top: ctxPos.y, left: ctxPos.x }}
-        >
-          <div className="libd-menu-title">
-            {ctxTarget.isDirectory ? 'Folder' : 'File'}: {ctxTarget.name}
-          </div>
-
-          {ctxTarget.isDirectory ? (
-            <>
-              <button
-                onClick={async () => {
-                  try {
-                    await zipAndDownloadFolder(ctxTarget.name);
-                  } finally {
-                    setCtxOpen(false);
-                  }
-                }}
-                className="libd-menu-btn"
-              >
-                ⬇️ Download as ZIP
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => handlePreview(ctxTarget)}
-                className="libd-menu-btn"
-              >
-                👁 Preview
-              </button>
-              <button
-                onClick={() => handleDownload(ctxTarget)}
-                className="libd-menu-btn"
-              >
-                ⬇️ Download
-              </button>
-            </>
-          )}
-
-          <button
-            onClick={() => openRename(ctxTarget)}
-            className="libd-menu-btn"
-          >
-            ✏️ Rename
-          </button>
-          <button
-            onClick={() => openConfirmDeleteSingle(ctxTarget)}
-            disabled={working}
-            className="libd-menu-btn libd-menu-danger"
-          >
-            🗑 Delete…
-          </button>
-        </div>
-      )}
-
-      {/* Preview Modal */}
-      {previewOpen && (
-        <Modal
-          onClose={() => setPreviewOpen(false)}
-          title={previewData.name ? `Preview — ${previewData.name}` : 'Preview'}
-        >
-          {/* SVG */}
-          {previewData.type === 'svg' && (
-            <div className="libd-preview-media">
-              <object
-                data={previewData.url}
-                type="image/svg+xml"
-                className="libd-preview-object"
-                aria-label="SVG preview"
-              >
-                <img src={previewData.url} alt="SVG preview" />
-              </object>
-            </div>
-          )}
-
-          {previewData.type === 'image' && (
-            <img
-              src={previewData.url}
-              alt="preview"
-              className="libd-preview-media"
-            />
-          )}
-
-          {previewData.type === 'pdf' && (
-            <iframe
-              title="pdf"
-              src={previewData.url}
-              className="libd-preview-pdf"
-            />
-          )}
-
-          {previewData.type === 'audio' && (
-            <audio controls className="libd-preview-audio" preload="metadata">
-              <source src={previewData.url} />
-              Your browser does not support the audio element.
-            </audio>
-          )}
-
-          {/* ✅ Video preview with streaming URL for Range/seek + always-visible controls */}
-          {previewData.type === 'video' && (
-            <video
-              key={previewData.url}
-              controls
-              playsInline
-              preload="metadata"
-              className="libd-preview-video libd-preview-media"
-              style={{ pointerEvents: 'auto' }}
-              onError={() => {
-                try {
-                  window.open(previewData.url, '_blank', 'noopener,noreferrer');
-                } catch {}
-              }}
-            >
-              <source
-                src={previewData.url}
-                type={previewData.mime || 'video/mp4'}
+          {/* Row 2: Buttons + Search */}
+          <div className="libd-toolbar-row libd-toolbar-actions">
+            <div className="libd-actions">
+              <CustomerOrderUploadFile
+                currentPath={path}
+                onFileUploaded={fetchList}
               />
-              Your browser does not support the video tag.
-            </video>
-          )}
+              <CustomerOrderUploadFolder
+                currentPath={path}
+                onFolderUploaded={handleFolderUploaded}
+              />
+              <CustomerOrderCreateFolder
+                currentFolder={{
+                  fullPath: path,
+                  name:
+                    path.split('/').filter(Boolean).pop() || 'customer-order',
+                }}
+                onCustomerOrderCreateFolder={fetchList}
+                buttonVariant="outline-dark"
+              />
+              <button onClick={goUp} title="Up" className="libd-pill">
+                ⬆ Up
+              </button>
+              <button onClick={refresh} title="Refresh" className="libd-pill">
+                🔄 Refresh
+              </button>
+              <button
+                onClick={downloadSelected}
+                disabled={selected.size === 0 || working}
+                className="libd-pill"
+                title="Download selected"
+              >
+                ⬇ Download Selected ({selected.size})
+              </button>
+              <button
+                onClick={openConfirmDeleteBulk}
+                disabled={selected.size === 0 || working}
+                className="libd-pill libd-danger"
+                title="Delete selected"
+              >
+                🗑 Delete Selected ({selected.size})
+              </button>
+            </div>
 
-          {previewData.type === 'iframe' && (
-            <iframe
-              title="html"
-              src={previewData.url}
-              className="libd-preview-pdf"
-              sandbox="allow-same-origin allow-forms allow-scripts"
-            />
-          )}
-
-          {/* Office Online viewer */}
-          {previewData.type === 'office' && (
-            <iframe
-              title="office"
-              src={previewData.url}
-              className="libd-preview-pdf"
-            />
-          )}
-
-          {previewData.type === 'text' && (
-            <pre className="libd-preview-text">{previewData.text}</pre>
-          )}
-
-          <div className="libd-modal-actions">
-            <button
-              onClick={() => setPreviewOpen(false)}
-              className="libd-btn-primary"
-            >
-              Close
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Rename Modal */}
-      {renameOpen && ctxTarget && (
-        <Modal
-          onClose={() => setRenameOpen(false)}
-          title={`Rename ${ctxTarget.isDirectory ? 'Folder' : 'File'}`}
-        >
-          <div className="libd-field">
-            <label className="libd-label">New name</label>
             <input
+              ref={searchInputRef}
               type="text"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              className="libd-input"
-              autoFocus
+              className="libd-input libd-input-search"
+              placeholder="Search in this folder…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') submitRename();
-                if (e.key === 'Escape') setRenameOpen(false);
+                if (e.key === 'Escape') setSearchTerm('');
               }}
+              aria-label="Search files and folders in this folder"
             />
           </div>
-          <div className="libd-modal-actions libd-gap">
+        </div>
+
+        {/* Notices */}
+        {successMsg && (
+          <div className="libd-alert libd-alert-success" role="status">
+            {successMsg}
+          </div>
+        )}
+        {errorMsg && (
+          <div className="libd-alert libd-alert-error">{errorMsg}</div>
+        )}
+        {loading && <div className="libd-alert libd-alert-info">Loading…</div>}
+
+        {/* ================== Scrollable table ================== */}
+        <div className="libd-table">
+          {/* Header row */}
+          <div className="libd-thead">
+            <input
+              type="checkbox"
+              aria-label="Select all"
+              checked={
+                visibleItems.length > 0 &&
+                visibleItems.every((it) =>
+                  selected.has(joinPosix(path, it.name))
+                )
+              }
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleAll();
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div>Name</div>
+            <div className="libd-right">Size</div>
+            <div className="libd-right libd-col-mod">Last modified</div>
+          </div>
+
+          {/* Body with its own vertical scrollbar */}
+          <div className="libd-tbody-scroll">
+            {visibleItems.length === 0 && !loading ? (
+              <div className="libd-empty" role="status">
+                {normalizedQuery
+                  ? 'No matching files or folders.'
+                  : 'No files or folders'}
+              </div>
+            ) : (
+              visibleItems.map((item) => {
+                const k = keyOf(item);
+                const full = joinPosix(path, item.name);
+                const sizeToShow = item.isDirectory
+                  ? typeof item.size === 'number'
+                    ? item.size
+                    : folderSizes[full]
+                  : item.size;
+                return (
+                  <div
+                    key={k}
+                    onClick={() => onRowClick(item)}
+                    onDoubleClick={() => onRowDoubleClick(item)}
+                    onContextMenu={(e) => onRowContextMenu(e, item)}
+                    className={`libd-row ${isSelected(k) ? 'is-selected' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${item.name}`}
+                      checked={isSelected(k)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleOne(k);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+
+                    {/* Name */}
+                    <div className="libd-name" title={item.name}>
+                      <FontAwesomeIcon
+                        icon={item.isDirectory ? faFolder : faFile}
+                        className={`libd-fa ${
+                          item.isDirectory ? 'libd-folder' : 'libd-file'
+                        }`}
+                      />
+                      {renderHighlightedName(item.name)}
+                    </div>
+
+                    {/* Size */}
+                    <div className="libd-right libd-muted" data-label="Size">
+                      {typeof sizeToShow === 'number'
+                        ? fmtBytes(sizeToShow)
+                        : '—'}
+                    </div>
+
+                    {/* Last modified */}
+                    <div
+                      className="libd-right libd-muted libd-col-mod"
+                      data-label="Last modified"
+                    >
+                      {fmtDate(item.modifiedAt)}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Context Menu */}
+        {ctxOpen && ctxTarget && (
+          <div
+            ref={ctxRef}
+            className="libd-menu"
+            style={{ top: ctxPos.y, left: ctxPos.x }}
+          >
+            <div className="libd-menu-title">
+              {ctxTarget.isDirectory ? 'Folder' : 'File'}: {ctxTarget.name}
+            </div>
+
+            {ctxTarget.isDirectory ? (
+              <>
+                <button
+                  onClick={async () => {
+                    try {
+                      await zipAndDownloadFolder(ctxTarget.name);
+                    } finally {
+                      setCtxOpen(false);
+                    }
+                  }}
+                  className="libd-menu-btn"
+                >
+                  ⬇️ Download as ZIP
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => handlePreview(ctxTarget)}
+                  className="libd-menu-btn"
+                >
+                  👁 Preview
+                </button>
+                <button
+                  onClick={() => handleDownload(ctxTarget)}
+                  className="libd-menu-btn"
+                >
+                  ⬇️ Download
+                </button>
+              </>
+            )}
+
             <button
-              onClick={() => setRenameOpen(false)}
-              className="libd-btn-secondary"
+              onClick={() => openRename(ctxTarget)}
+              className="libd-menu-btn"
             >
-              Cancel
+              ✏️ Rename
             </button>
-            <button onClick={submitRename} className="libd-btn-primary">
-              Save
+            <button
+              onClick={() => openConfirmDeleteSingle(ctxTarget)}
+              disabled={working}
+              className="libd-menu-btn libd-menu-danger"
+            >
+              🗑 Delete…
             </button>
           </div>
-        </Modal>
-      )}
+        )}
 
-      {/* Confirm Delete Modal (single + bulk) */}
-      <ConfirmDeleteModal
-        open={confirmOpen}
-        items={confirmItems}
-        submitting={confirmSubmitting}
-        onCancel={() => {
-          if (!confirmSubmitting) {
-            setConfirmOpen(false);
-            setConfirmItems([]);
-          }
-        }}
-        onConfirm={performDelete}
-      />
+        {/* Preview Modal */}
+        {previewOpen && (
+          <Modal
+            onClose={() => setPreviewOpen(false)}
+            title={
+              previewData.name ? `Preview — ${previewData.name}` : 'Preview'
+            }
+          >
+            {/* SVG */}
+            {previewData.type === 'svg' && (
+              <div className="libd-preview-media">
+                <object
+                  data={previewData.url}
+                  type="image/svg+xml"
+                  className="libd-preview-object"
+                  aria-label="SVG preview"
+                >
+                  <img src={previewData.url} alt="SVG preview" />
+                </object>
+              </div>
+            )}
+
+            {previewData.type === 'image' && (
+              <img
+                src={previewData.url}
+                alt="preview"
+                className="libd-preview-media"
+              />
+            )}
+
+            {previewData.type === 'pdf' && (
+              <iframe
+                title="pdf"
+                src={previewData.url}
+                className="libd-preview-pdf"
+              />
+            )}
+
+            {previewData.type === 'audio' && (
+              <audio controls className="libd-preview-audio" preload="metadata">
+                <source src={previewData.url} />
+                Your browser does not support the audio element.
+              </audio>
+            )}
+
+            {/* Video preview with native controller (HTTP Range via stream URL) */}
+            {previewData.type === 'video' && (
+              <video
+                key={previewData.url}
+                controls
+                playsInline
+                preload="metadata"
+                className="libd-preview-video libd-preview-media"
+                style={{ pointerEvents: 'auto' }}
+                onError={() => {
+                  try {
+                    window.open(
+                      previewData.url,
+                      '_blank',
+                      'noopener,noreferrer'
+                    );
+                  } catch {}
+                }}
+              >
+                <source
+                  src={previewData.url}
+                  type={previewData.mime || 'video/mp4'}
+                />
+                Your browser does not support the video tag.
+              </video>
+            )}
+
+            {previewData.type === 'iframe' && (
+              <iframe
+                title="html"
+                src={previewData.url}
+                className="libd-preview-pdf"
+                sandbox="allow-same-origin allow-forms allow-scripts"
+              />
+            )}
+
+            {/* Office Online viewer */}
+            {previewData.type === 'office' && (
+              <iframe
+                title="office"
+                src={previewData.url}
+                className="libd-preview-pdf"
+              />
+            )}
+
+            {previewData.type === 'text' && (
+              <pre className="libd-preview-text">{previewData.text}</pre>
+            )}
+
+            <div className="libd-modal-actions">
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="libd-btn-primary"
+              >
+                Close
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {/* Rename Modal */}
+        {renameOpen && ctxTarget && (
+          <Modal
+            onClose={() => setRenameOpen(false)}
+            title={`Rename ${ctxTarget.isDirectory ? 'Folder' : 'File'}`}
+          >
+            <div className="libd-field">
+              <label className="libd-label">New name</label>
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                className="libd-input"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitRename();
+                  if (e.key === 'Escape') setRenameOpen(false);
+                }}
+              />
+            </div>
+            <div className="libd-modal-actions libd-gap">
+              <button
+                onClick={() => setRenameOpen(false)}
+                className="libd-btn-secondary"
+              >
+                Cancel
+              </button>
+              <button onClick={submitRename} className="libd-btn-primary">
+                Save
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {/* Confirm Delete Modal (single + bulk) */}
+        <ConfirmDeleteModal
+          open={confirmOpen}
+          items={confirmItems}
+          submitting={confirmSubmitting}
+          onCancel={() => {
+            if (!confirmSubmitting) {
+              setConfirmOpen(false);
+              setConfirmItems([]);
+            }
+          }}
+          onConfirm={performDelete}
+        />
+      </div>
     </div>
   );
 }

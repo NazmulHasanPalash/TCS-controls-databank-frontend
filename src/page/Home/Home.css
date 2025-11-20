@@ -1,32 +1,186 @@
-.home-page-heading-style {
-    text-align: center;
-    width: 45%;
+/* ========== Global layout for Home ========== */
+
+.home-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0b1020;
 }
 
-
-
-.review-style {
-    border: solid 5px white;
-    border-radius: 30px;
+/* Push content a bit down if header is sticky/fixed */
+.home-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.review-style img {
-    border: solid 5px white;
-    border-radius: 30px;
-    height: 150px;
+/* ========== Loading state ========== */
+
+.home-loading-root {
+  min-height: 100vh;
+  background: radial-gradient(
+    circle at top,
+    #0b1120 0%,
+    #020617 60%,
+    #000 100%
+  );
 }
 
-.referances-style {
-    border: solid white;
-    border-radius: 20px;
+.home-loading-spinner {
+  width: 3rem;
+  height: 3rem;
 }
 
-.referances-style img {
-    border-radius: 20px;
+/* ========== Banner / hero section ========== */
+
+.home-banner-section {
+  padding-top: clamp(4rem, 3.2rem + 2vw, 5.5rem); /* leave room for header */
+  padding-bottom: clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem);
+  background: radial-gradient(
+    circle at top,
+    #1f2937 0%,
+    #020617 60%,
+    #020617 100%
+  );
+  color: #f9fafb;
 }
 
-.arrow-style {
-    background-color: green !important;
-    border-radius: 50px;
+.home-banner-inner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-inline: clamp(1rem, 3vw, 2rem);
+}
 
+/* ========== File manager section ========== */
+
+.home-filemanager-section {
+  padding-top: clamp(1rem, 0.8rem + 1vw, 2rem);
+  padding-bottom: clamp(2rem, 1.6rem + 2vw, 3rem);
+  background: #020617;
+}
+
+.home-filemanager-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-inline: clamp(0.75rem, 2.5vw, 2rem);
+}
+
+/* Slight card-style feeling around FileManager on smaller devices */
+@media (max-width: 991.98px) {
+  .home-filemanager-container {
+    padding-inline: clamp(0.75rem, 4vw, 1.5rem);
+  }
+}
+
+/* ========== Pending authorization modal ========== */
+
+.home-auth-root {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #020617 0%, #000 75%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Override the default bootstrap inline background set in JS */
+.home-auth-modal {
+  background: transparent !important;
+}
+
+.home-auth-dialog {
+  margin: 0 0.75rem;
+}
+
+.home-auth-content {
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: radial-gradient(circle at top left, #111827 0%, #020617 60%);
+  color: #e5e7eb;
+  padding-inline: clamp(0.25rem, 1vw, 0.75rem);
+}
+
+.home-auth-header {
+  border-bottom: 1px solid rgba(55, 65, 81, 0.8);
+  padding-block: 0.85rem;
+  padding-inline: clamp(1rem, 1.4rem, 1.7rem);
+}
+
+.home-auth-title {
+  font-size: clamp(1.05rem, 1rem + 0.3vw, 1.3rem);
+  font-weight: 600;
+  color: #f9fafb;
+  margin: 0;
+}
+
+.home-auth-body {
+  padding: 1rem clamp(1rem, 1.4rem, 1.7rem) 0.75rem;
+  font-size: clamp(0.85rem, 0.82rem + 0.2vw, 0.98rem);
+  line-height: 1.5;
+  color: #e5e7eb;
+}
+
+.home-auth-body strong {
+  color: #facc15;
+  font-weight: 600;
+}
+
+.home-auth-footer {
+  border-top: 1px solid rgba(55, 65, 81, 0.8);
+  padding: 0.75rem clamp(1rem, 1.4rem, 1.7rem) 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Button: responsive size, full-width on very small screens */
+.home-auth-btn {
+  min-width: 140px;
+  font-size: clamp(0.84rem, 0.8rem + 0.2vw, 0.95rem);
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.45rem 1.4rem;
+  border: none;
+  background: linear-gradient(135deg, #4f46e5, #06b6d4);
+  color: #f9fafb;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.45);
+}
+
+.home-auth-btn:hover {
+  background: linear-gradient(135deg, #6366f1, #0ea5e9);
+  color: #ffffff;
+}
+
+@media (max-width: 575.98px) {
+  .home-auth-dialog {
+    margin-inline: 1rem;
+  }
+
+  .home-auth-footer {
+    padding-top: 0.5rem;
+  }
+
+  .home-auth-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Backdrop tweak so it blends nicely with our gradient background */
+.home-auth-backdrop {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+/* ========== Small extra tweaks ========== */
+
+/* Prevent layout jump when spinner shows */
+.home-loading-root .home-loading-spinner {
+  margin-top: -3rem;
+}
+
+/* Slightly adjust spacing on very small devices for banner */
+@media (max-width: 575.98px) {
+  .home-banner-section {
+    padding-top: 4.25rem;
+    padding-bottom: 1.5rem;
+  }
 }

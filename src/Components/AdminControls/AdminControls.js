@@ -76,6 +76,10 @@ function RolePill({ value }) {
   return <span className={`pill pill--${v}`}>{prettyRole(v)}</span>;
 }
 
+RolePill.propTypes = {
+  value: React.PropTypes?.string,
+};
+
 // Normalize .data vs raw axios responses
 async function apiGet(url, config) {
   const res = await api.get(url, config);
@@ -236,178 +240,201 @@ export default function AdminControls() {
   }, [users, filter]);
 
   return (
-    <div className="ac-container mx-auto w-75 my-4">
-      <header className="ac-header">
-        <h3 className="ac-title">Admin — Dashboard</h3>
-        <div className="ac-stats" role="status" aria-live="polite">
-          <span className="ac-chip">Users: {users.length}</span>
-          {busy && <span className="ac-chip ac-chip--busy">Working…</span>}
-        </div>
-      </header>
-
-      {!!msg && (
-        <div
-          className={`ac-alert ac-alert--${msgType}`}
-          role="status"
-          aria-live="polite"
-        >
-          {msg}
-        </div>
-      )}
-
-      <section className="ac-card ac-card--accent">
-        <form
-          className="ac-form ac-grid ac-grid--responsive"
-          onSubmit={(e) => save(e, { reset: false })}
-        >
-          <div className="ac-field ac-field--full">
-            <label className="ac-label" htmlFor="ac-email">
-              Email
-            </label>
-            <input
-              id="ac-email"
-              type="email"
-              className="ac-input"
-              placeholder="user@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              required
-            />
-            <small className="ac-help">
-              Enter an email and choose a role, then click Save.
-            </small>
+    <div className="ac-root">
+      <div className="ac-shell">
+        <header className="ac-header">
+          <div>
+            <h3 className="ac-title">Admin — Dashboard</h3>
+            <p className="ac-subtitle">
+              Manage user roles and access in a single, clean view.
+            </p>
           </div>
-
-          <div className="ac-field">
-            <label className="ac-label" htmlFor="ac-name">
-              Name
-            </label>
-            <input
-              id="ac-name"
-              className="ac-input"
-              placeholder="Optional display name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={!email || busy}
-            />
+          <div className="ac-stats" role="status" aria-live="polite">
+            <span className="ac-chip">Users: {users.length}</span>
+            {busy && <span className="ac-chip ac-chip--busy">Working…</span>}
           </div>
+        </header>
 
-          <div className="ac-field">
-            <label className="ac-label" htmlFor="ac-role">
-              Role
-            </label>
-            <select
-              id="ac-role"
-              className="ac-select"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              disabled={!email || busy}
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {prettyRole(r)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="ac-actions ac-actions--stack">
-            <button
-              type="submit"
-              className="ac-btn ac-btn--primary"
-              disabled={!email || busy}
-            >
-              {busy ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <div className="ac-list-header">
-        <h4 className="ac-subtitle">All Users</h4>
-        <div className="ac-row ac-row--wrap">
-          <input
-            className="ac-input ac-input--grow"
-            placeholder="Filter by name/email/role…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            aria-label="Filter users"
-          />
-          <button
-            type="button"
-            className="ac-btn ac-btn--ghost"
-            onClick={refreshList}
-            disabled={listBusy}
+        {!!msg && (
+          <div
+            className={`ac-alert ac-alert--${msgType}`}
+            role="status"
+            aria-live="polite"
           >
-            {listBusy ? 'Refreshing…' : 'Refresh'}
-          </button>
-        </div>
-      </div>
+            {msg}
+          </div>
+        )}
 
-      {/* Users table with vertical scrollbar and sticky header */}
-      <div className="ac-tablewrap ac-tablewrap--large">
-        <table className="ac-table">
-          <thead>
-            <tr>
-              <th style={{ width: '22%' }}>UID</th>
-              <th style={{ width: '24%' }}>Email</th>
-              <th style={{ width: '18%' }}>Name</th>
-              <th style={{ width: '12%' }}>Role</th>
-              <th style={{ width: '14%' }}>Updated</th>
-              <th style={{ width: '10%' }} aria-label="Actions">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="ac-muted">
-                  {listBusy ? 'Loading…' : 'No users found'}
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map((u, idx) => (
-                <tr
-                  key={u.id || u.email || idx}
-                  className={
-                    u.id && u.id === lastChangedUid
-                      ? 'ac-row--highlight'
-                      : undefined
-                  }
-                >
-                  <td className="ac-mono ac-nowrap">{u.id || '—'}</td>
-                  <td className="ac-nowrap">
-                    {u.email ? (
-                      <a className="ac-link" href={`mailto:${u.email}`}>
-                        {u.email}
-                      </a>
-                    ) : (
-                      <span className="ac-muted">—</span>
-                    )}
-                  </td>
-                  <td>{u.name || <span className="ac-muted">—</span>}</td>
-                  <td>
-                    <RolePill value={(u.role || '').toLowerCase()} />
-                  </td>
-                  <td className="ac-small">{fmtDate(u.updatedAt)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="ac-btn ac-btn--danger ac-btn--sm"
-                      onClick={() => onDeleteByUid(u)}
-                      disabled={listBusy}
-                      title="Delete this user"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))
+        <section className="ac-card ac-card--accent">
+          <div className="ac-card-header">
+            <h4 className="ac-card-title">Assign Role</h4>
+            {updatedAt && (
+              <span className="ac-card-meta">
+                Last updated: {fmtDate(updatedAt)}
+              </span>
             )}
-          </tbody>
-        </table>
+          </div>
+
+          <form
+            className="ac-form ac-grid ac-grid--responsive"
+            onSubmit={(e) => save(e, { reset: false })}
+          >
+            <div className="ac-field ac-field--full">
+              <label className="ac-label" htmlFor="ac-email">
+                Email
+              </label>
+              <input
+                id="ac-email"
+                type="email"
+                className="ac-input"
+                placeholder="user@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+              <small className="ac-help">
+                Enter the user&apos;s email and choose a role, then click Save.
+              </small>
+            </div>
+
+            <div className="ac-field">
+              <label className="ac-label" htmlFor="ac-name">
+                Name
+              </label>
+              <input
+                id="ac-name"
+                className="ac-input"
+                placeholder="Optional display name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={!email || busy}
+              />
+            </div>
+
+            <div className="ac-field">
+              <label className="ac-label" htmlFor="ac-role">
+                Role
+              </label>
+              <select
+                id="ac-role"
+                className="ac-select"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                disabled={!email || busy}
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {prettyRole(r)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="ac-actions">
+              <button
+                type="submit"
+                className="ac-btn ac-btn--primary"
+                disabled={!email || busy}
+              >
+                {busy ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section className="ac-list-section">
+          <div className="ac-list-header">
+            <div>
+              <h4 className="ac-section-title">All Users</h4>
+              <p className="ac-section-subtitle">
+                Filter by name, email, or role and manage access.
+              </p>
+            </div>
+            <div className="ac-row ac-row--wrap">
+              <input
+                className="ac-input ac-input--grow"
+                placeholder="Filter by name / email / role…"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                aria-label="Filter users"
+              />
+              <button
+                type="button"
+                className="ac-btn ac-btn--ghost"
+                onClick={refreshList}
+                disabled={listBusy}
+              >
+                {listBusy ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
+          </div>
+
+          {/* Users table with vertical scrollbar and sticky header */}
+          <div className="ac-tablewrap ac-tablewrap--large">
+            <table className="ac-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '22%' }}>UID</th>
+                  <th style={{ width: '24%' }}>Email</th>
+                  <th style={{ width: '18%' }}>Name</th>
+                  <th style={{ width: '12%' }}>Role</th>
+                  <th style={{ width: '14%' }}>Updated</th>
+                  <th style={{ width: '10%' }} aria-label="Actions">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="ac-muted ac-center">
+                      {listBusy ? 'Loading…' : 'No users found'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((u, idx) => (
+                    <tr
+                      key={u.id || u.email || idx}
+                      className={
+                        u.id && u.id === lastChangedUid
+                          ? 'ac-row--highlight'
+                          : undefined
+                      }
+                    >
+                      <td className="ac-mono ac-nowrap">{u.id || '—'}</td>
+                      <td className="ac-nowrap">
+                        {u.email ? (
+                          <a className="ac-link" href={`mailto:${u.email}`}>
+                            {u.email}
+                          </a>
+                        ) : (
+                          <span className="ac-muted">—</span>
+                        )}
+                      </td>
+                      <td>{u.name || <span className="ac-muted">—</span>}</td>
+                      <td>
+                        <RolePill value={(u.role || '').toLowerCase()} />
+                      </td>
+                      <td className="ac-small">{fmtDate(u.updatedAt)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="ac-btn ac-btn--danger ac-btn--sm"
+                          onClick={() => onDeleteByUid(u)}
+                          disabled={listBusy}
+                          title="Delete this user"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
   );

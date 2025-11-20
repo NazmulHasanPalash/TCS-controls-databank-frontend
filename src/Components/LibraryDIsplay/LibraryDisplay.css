@@ -1,10 +1,34 @@
 /* ===============================
-   Root
+   Root layout
    =============================== */
+
 .libd-root {
-  padding: 16px;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  width: 100%;
+  min-height: 0;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  background: radial-gradient(
+      circle at top left,
+      rgba(187, 247, 208, 0.25),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(221, 239, 253, 0.7),
+      transparent 55%
+    ),
+    #f9fafb;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    sans-serif;
   color: #0f172a;
+  box-sizing: border-box;
+}
+
+.libd-shell {
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
 }
 
 /* Ensure breadcrumb shows full segment names (no ellipsis) */
@@ -19,47 +43,83 @@
   white-space: nowrap !important;
 }
 
+/* Highlighted search match */
+.libd-name mark {
+  background: rgba(59, 130, 246, 0.12);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
 /* ===============================
    Toolbar
    =============================== */
+
 .libd-toolbar {
   display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 12px;
-  flex-wrap: wrap; /* responsive */
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+  width: 100%;
 }
+
+/* generic row wrapper for toolbar sections */
+.libd-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+/* row that holds actions + search */
+.libd-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
 .libd-actions {
   display: flex;
   gap: 8px;
   margin-left: auto;
   flex-wrap: wrap; /* responsive */
 }
+
+/* pill-style buttons on toolbar */
 .libd-pill {
-  padding: 6px 10px;
+  padding: 6px 11px;
   border-radius: 999px;
   border: 1px solid #cbd5e1;
-  background: #fff;
+  background: #ffffff;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease,
-    transform 0.02s ease;
+    transform 0.04s ease, box-shadow 0.15s ease;
   font-size: 14px;
   line-height: 1.1;
+  color: #0f172a;
+  box-shadow: 0 0 0 0 rgba(148, 163, 184, 0);
 }
 .libd-pill:hover {
   background: #f8fafc;
   border-color: #94a3b8;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 .libd-pill:active {
   transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
 }
 .libd-pill:focus-visible {
-  outline: 3px solid rgba(99, 102, 241, 0.35);
+  outline: 3px solid rgba(59, 130, 246, 0.5);
   outline-offset: 2px;
 }
 .libd-pill:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 .libd-danger {
   color: #b91c1c;
@@ -67,14 +127,36 @@
   background: #fff5f5;
 }
 
-/* Make buttons/text shrink slightly on smaller screens */
+/* Make layout + buttons/text adapt on smaller screens */
 @media (max-width: 640px) {
+  .libd-root {
+    padding: 1.25rem;
+  }
+
+  .libd-toolbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .libd-actions {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
   .libd-pill {
     font-size: 13px;
-    padding: 6px 8px;
+    padding: 6px 9px;
+  }
+
+  .libd-input-search {
+    width: 100%;
   }
 }
 @media (max-width: 480px) {
+  .libd-root {
+    padding: 1rem;
+  }
+
   .libd-pill {
     font-size: 12px;
     padding: 5px 8px;
@@ -94,63 +176,77 @@
    Alerts
    =============================== */
 .libd-alert {
-  padding: 12px;
-  border-radius: 8px;
+  padding: 11px 12px;
+  border-radius: 10px;
   margin-bottom: 10px;
+  font-size: 0.86rem;
 }
 .libd-alert-error {
   border: 1px solid #f5c2c7;
-  background: #f8d7da;
-  color: #842029;
+  background: #fef2f2;
+  color: #b91c1c;
 }
 .libd-alert-info {
-  border: 1px solid #b6d4fe;
-  background: #cfe2ff;
-  color: #084298;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
-/* Success variant (used by folder upload) */
 .libd-alert-success {
-  border: 1px solid #badbcc;
-  background: #d1e7dd;
-  color: #0f5132;
+  border: 1px solid #bbf7d0;
+  background: #ecfdf3;
+  color: #15803d;
 }
 
 /* ===============================
-   Table
+   Table container (card)
    =============================== */
 .libd-table {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  background: #fff;
+  background: radial-gradient(
+      circle at top left,
+      rgba(248, 250, 252, 0.98),
+      transparent 60%
+    ),
+    #ffffff;
+  width: 100%;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(226, 232, 240, 0.9);
 }
+
+/* header: checkbox | name | size | modified */
 .libd-thead {
   display: grid;
-  grid-template-columns: 36px 1fr 120px 220px; /* checkbox | name | size | modified */
+  grid-template-columns: 36px 1fr 120px 220px;
   gap: 8px;
-  padding: 10px 12px;
-  background: #f8fafc;
+  padding: 11px 14px;
+  background: linear-gradient(90deg, #f9fafb, #f1f5f9);
   border-bottom: 1px solid #e5e7eb;
   font-weight: 600;
   color: #334155;
   align-items: center;
+  font-size: 0.86rem;
 }
+
 .libd-row {
   display: grid;
   grid-template-columns: 36px 1fr 120px 220px;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-top: 1px solid #f1f5f9;
   align-items: center;
   background: transparent;
   user-select: none;
-  transition: background 0.12s ease;
+  transition: background 0.12s ease, transform 0.04s ease, box-shadow 0.12s ease;
+  font-size: 0.88rem;
 }
 .libd-row:hover {
   background: #f8fafc;
 }
 .libd-row.is-selected {
   background: #eff6ff;
+  box-shadow: inset 2px 0 0 #3b82f6;
 }
 
 .libd-name {
@@ -165,7 +261,7 @@
   text-align: right;
 }
 .libd-muted {
-  color: #475569;
+  color: #64748b;
 }
 
 /* Scrollable table body (used by .libd-tbody-scroll in JSX) */
@@ -190,11 +286,57 @@
   color: #64748b;
   font-style: italic;
   text-align: center;
-  font-size: 15px;
+  font-size: 0.9rem;
+}
+
+/* allow horizontal scroll on very narrow screens if needed */
+@media (max-width: 480px) {
+  .libd-table {
+    overflow-x: auto;
+  }
 }
 
 /* ===============================
-   Font Awesome icon colors — forced
+   Responsive table tweaks
+   =============================== */
+@media (max-width: 900px) {
+  .libd-thead,
+  .libd-row {
+    grid-template-columns: 32px 1fr 100px 180px;
+  }
+}
+@media (max-width: 760px) {
+  .libd-thead,
+  .libd-row {
+    grid-template-columns: 32px 1fr 90px 160px;
+  }
+}
+@media (max-width: 620px) {
+  /* Hide "Last modified" on smaller screens */
+  .libd-col-mod {
+    display: none !important;
+  }
+  .libd-thead,
+  .libd-row {
+    grid-template-columns: 32px 1fr 100px;
+  }
+}
+@media (max-width: 480px) {
+  .libd-right[data-label]::before {
+    content: attr(data-label) ': ';
+    font-weight: 600;
+    float: left;
+    margin-right: 4px;
+  }
+
+  /* Let file/folder names wrap on tiny screens */
+  .libd-name {
+    white-space: normal;
+  }
+}
+
+/* ===============================
+   Font Awesome icon colors
    =============================== */
 .libd-fa {
   vertical-align: -2px;
@@ -214,17 +356,19 @@
   position: fixed;
   z-index: 1000;
   min-width: 220px;
-  background: #fff;
+  background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.35),
+    0 0 0 1px rgba(226, 232, 240, 0.9);
   overflow: hidden;
 }
 .libd-menu-title {
   padding: 10px 12px;
   border-bottom: 1px solid #e5e7eb;
   font-weight: 600;
-  color: #334155;
+  color: #0f172a;
+  font-size: 0.86rem;
 }
 .libd-menu-btn {
   display: block;
@@ -232,9 +376,9 @@
   text-align: left;
   background: transparent;
   border: none;
-  padding: 10px 12px;
+  padding: 9px 12px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 0.86rem;
   transition: background 0.12s ease;
 }
 .libd-menu-btn:hover,
@@ -252,17 +396,18 @@
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(15, 23, 42, 0.4);
   display: grid;
   place-items: center;
   padding: 16px;
-  backdrop-filter: saturate(1.1) blur(2px);
+  backdrop-filter: saturate(1.1) blur(3px);
 }
 .libd-modal {
   width: min(900px, 92vw);
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35),
+    0 0 0 1px rgba(226, 232, 240, 0.9);
   overflow: hidden;
 }
 .libd-modal-header {
@@ -276,6 +421,7 @@
   font-weight: 700;
   color: #111827;
   flex: 1;
+  font-size: 0.98rem;
 }
 .libd-icon-btn {
   padding: 6px 8px;
@@ -289,11 +435,23 @@
   border-color: #e5e7eb;
 }
 .libd-icon-btn:focus-visible {
-  outline: 3px solid rgba(99, 102, 241, 0.35);
+  outline: 3px solid rgba(59, 130, 246, 0.5);
   outline-offset: 2px;
 }
 .libd-modal-body {
   padding: 14px;
+}
+
+/* Make modal and overlay tighter on very small devices */
+@media (max-width: 480px) {
+  .libd-modal-overlay {
+    padding: 10px;
+  }
+  .libd-modal {
+    width: 100vw;
+    max-width: 100vw;
+    border-radius: 0;
+  }
 }
 
 /* ===============================
@@ -303,29 +461,33 @@
   max-width: 100%;
   max-height: 70vh;
   display: block;
-  margin: 0 auto;
+  margin: 0 auto 10px;
   border-radius: 8px;
-  background: transparent; /* was white */
+  background: transparent;
+}
+.libd-preview-video {
+  width: 100%;
 }
 .libd-preview-pdf {
   width: 100%;
   height: 70vh;
   border: none;
   border-radius: 8px;
-  background: transparent; /* was #0b1020 */
+  background: #020617;
 }
 .libd-preview-audio {
   width: 100%;
   background: transparent;
 }
 .libd-preview-text {
-  background: transparent; /* was white */
-  color: inherit; /* was black */
+  background: #0b1120;
+  color: #e5e7eb;
   padding: 16px;
   border-radius: 8px;
   max-height: 70vh;
   overflow: auto;
   white-space: pre-wrap;
+  word-break: break-word;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     'Liberation Mono', monospace;
   font-size: 13px;
@@ -338,39 +500,106 @@
   border: none;
 }
 
+/* Responsive preview sizing for small devices */
+@media (max-width: 640px) {
+  .libd-preview-media {
+    max-height: 60vh;
+  }
+  .libd-preview-pdf,
+  .libd-preview-object {
+    height: 60vh;
+  }
+  .libd-preview-text {
+    max-height: 60vh;
+    font-size: 12px;
+  }
+}
+@media (max-width: 480px) {
+  .libd-preview-media {
+    max-height: 55vh;
+  }
+  .libd-preview-pdf,
+  .libd-preview-object {
+    height: 55vh;
+  }
+  .libd-preview-text {
+    max-height: 55vh;
+    font-size: 12px;
+    padding: 12px;
+  }
+}
+@media (max-width: 380px) {
+  .libd-preview-media {
+    max-height: 50vh;
+  }
+  .libd-preview-pdf,
+  .libd-preview-object {
+    height: 50vh;
+  }
+  .libd-preview-text {
+    max-height: 50vh;
+    font-size: 11px;
+    padding: 10px;
+  }
+}
+
 /* ===============================
-   Buttons
+   Buttons (modal footer)
    =============================== */
 .libd-btn-primary {
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid #0d6efd;
   background: #0d6efd;
-  color: #fff;
+  color: #ffffff;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  font-size: 0.9rem;
 }
 .libd-btn-primary:hover {
   background: #0b5ed7;
   border-color: #0a58ca;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
 }
 .libd-btn-secondary {
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
-  background: #fff;
+  background: #ffffff;
   color: #0f172a;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  font-size: 0.9rem;
 }
 .libd-btn-secondary:hover {
   background: #f8fafc;
   border-color: #94a3b8;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.15);
+}
+.libd-btn-danger {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  font-size: 0.9rem;
+}
+.libd-btn-danger:hover {
+  background: #b91c1c;
+  border-color: #991b1b;
+  box-shadow: 0 8px 20px rgba(220, 38, 38, 0.4);
 }
 .libd-btn-primary:disabled,
-.libd-btn-secondary:disabled {
+.libd-btn-secondary:disabled,
+.libd-btn-danger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* ===============================
@@ -383,6 +612,7 @@
   display: block;
   font-weight: 600;
   margin-bottom: 6px;
+  font-size: 0.88rem;
 }
 .libd-input {
   width: 100%;
@@ -391,6 +621,7 @@
   border-radius: 8px;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-size: 0.9rem;
 }
 .libd-input:focus {
   border-color: #93c5fd;
@@ -412,8 +643,12 @@
 }
 
 /* ===============================
-   Confirm Delete (nice-to-have styles)
+   Confirm Delete styles
    =============================== */
+.libd-confirm {
+  font-size: 0.9rem;
+  color: #0f172a;
+}
 .libd-confirm-title {
   font-weight: 600;
   margin-bottom: 8px;
@@ -430,32 +665,6 @@
 .libd-muted.small {
   font-size: 12px;
   color: #64748b;
-}
-
-/* ===============================
-   Responsive table tweaks
-   =============================== */
-@media (max-width: 900px) {
-  .libd-thead,
-  .libd-row {
-    grid-template-columns: 32px 1fr 100px 180px;
-  }
-}
-@media (max-width: 760px) {
-  .libd-thead,
-  .libd-row {
-    grid-template-columns: 32px 1fr 90px 160px;
-  }
-}
-@media (max-width: 620px) {
-  /* Hide "Last modified" on very small screens */
-  .libd-col-mod {
-    display: none !important;
-  }
-  .libd-thead,
-  .libd-row {
-    grid-template-columns: 32px 1fr 100px;
-  }
 }
 
 /* ===============================

@@ -90,6 +90,12 @@
     border-color 220ms ease-out, background 220ms ease-out;
   position: relative;
   overflow: hidden;
+  text-align: center;
+}
+
+/* optional: control inner padding if using Bootstrap .card-body */
+.tcs-fm-card .card-body {
+  padding: 1.6rem 1.5rem 1.7rem;
 }
 
 /* subtle inner gradient glow overlay */
@@ -173,6 +179,7 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 1rem;
+  margin-inline: auto;
   background: radial-gradient(circle at 30% 0%, #22c55e, #16a34a);
   border: 1px solid rgba(22, 163, 74, 0.9);
   box-shadow: 0 0 0 1px rgba(209, 250, 229, 0.95),
@@ -235,6 +242,7 @@
 
 /* ============ Responsive tweaks ============ */
 
+/* Large tablets and above */
 @media (max-width: 991.98px) {
   .tcs-fm-root {
     padding: 3rem 1.2rem 2.75rem;
@@ -243,8 +251,43 @@
   .tcs-fm-title {
     font-size: 1.7rem;
   }
+
+  .tcs-fm-subtitle {
+    font-size: 0.92rem;
+    max-width: 480px;
+  }
+
+  .tcs-fm-card .card-body {
+    padding: 1.5rem 1.4rem 1.6rem;
+  }
 }
 
+/* Tablets and small landscape screens */
+@media (max-width: 767.98px) {
+  .tcs-fm-header {
+    margin-bottom: 2.1rem;
+  }
+
+  .tcs-fm-title {
+    font-size: 1.6rem;
+    letter-spacing: 0.1em;
+  }
+
+  .tcs-fm-subtitle {
+    font-size: 0.9rem;
+    max-width: 100%;
+  }
+
+  .tcs-fm-card .card-body {
+    padding: 1.4rem 1.2rem 1.5rem;
+  }
+
+  .tcs-fm-card-text {
+    max-width: 260px;
+  }
+}
+
+/* Phones */
 @media (max-width: 575.98px) {
   .tcs-fm-root {
     padding: 2.5rem 1rem 2.25rem;
@@ -256,5 +299,91 @@
 
   .tcs-fm-subtitle {
     font-size: 0.86rem;
+  }
+
+  .tcs-fm-icon-pill {
+    width: 58px;
+    height: 58px;
+  }
+
+  .tcs-fm-icon {
+    font-size: 1.4rem;
+  }
+
+  .tcs-fm-card-title {
+    font-size: 0.95rem;
+    letter-spacing: 0.07em;
+  }
+
+  .tcs-fm-card-text {
+    font-size: 0.78rem;
+    max-width: 260px;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  .tcs-fm-root {
+    padding: 2.3rem 0.9rem 2.1rem;
+  }
+
+  .tcs-fm-title {
+    font-size: 1.4rem;
+  }
+
+  .tcs-fm-subtitle {
+    font-size: 0.84rem;
+  }
+
+  .tcs-fm-card .card-body {
+    padding: 1.3rem 1.1rem 1.4rem;
+  }
+
+  .tcs-fm-icon-pill {
+    width: 54px;
+    height: 54px;
+    margin-bottom: 0.8rem;
+  }
+
+  .tcs-fm-card-title {
+    font-size: 0.9rem;
+  }
+
+  .tcs-fm-card-text {
+    font-size: 0.76rem;
+    max-width: 100%;
+  }
+}
+
+/* Extra small phones */
+@media (max-width: 380px) {
+  .tcs-fm-root {
+    padding: 2.1rem 0.75rem 2rem;
+  }
+
+  .tcs-fm-title {
+    font-size: 1.3rem;
+    letter-spacing: 0.08em;
+  }
+
+  .tcs-fm-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .tcs-fm-icon-pill {
+    width: 50px;
+    height: 50px;
+  }
+
+  .tcs-fm-icon {
+    font-size: 1.25rem;
+  }
+
+  .tcs-fm-card-title {
+    font-size: 0.88rem;
+  }
+
+  .tcs-fm-card-text {
+    font-size: 0.74rem;
   }
 }
