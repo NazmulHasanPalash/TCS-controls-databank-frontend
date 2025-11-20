@@ -7,7 +7,7 @@ import { HashLink } from 'react-router-hash-link';
 /**
  * Default roots; now includes:
  * Library, Sourcing & Pricing, Administrative, New Administration, Administrative System,
- * Sales, Customer Order, Production, Finance, HR, Moderator, Operator, and Admin
+ * Sales, New Sales, Customer Order, Production, Finance, HR, Moderator, Operator, and Admin
  */
 const DEFAULT_ROOTS = [
   '/library',
@@ -16,6 +16,7 @@ const DEFAULT_ROOTS = [
   '/new-administration',
   '/administrative-system',
   '/sales',
+  '/new-sales',
   '/customer-order',
   '/production',
   '/finance',
@@ -33,6 +34,7 @@ const DEFAULT_LABELS = {
   '/new-administration': 'New Administration',
   '/administrative-system': 'Administrative System',
   '/sales': 'Sales',
+  '/new-sales': 'New Sales',
   '/customer-order': 'Customer Order',
   '/production': 'Production',
   '/finance': 'Finance',
@@ -121,7 +123,7 @@ function BreadCrum({
     // Label for the root; allow custom label map
     const rootLabel =
       labels[root] ||
-      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "new-administration", "administrative-system", "sales", "customer-order", "production", "finance", "hr", "moderator", "operator", "admin"
+      root.replace(/^\/+/, '') || // e.g. "library", "sourcing-pricing", "administrative", "new-administration", "administrative-system", "sales", "new-sales", "customer-order", "production", "finance", "hr", "moderator", "operator", "admin"
       'root';
 
     const list = [{ name: rootLabel, full: root }];
@@ -183,6 +185,7 @@ BreadCrum.propTypes = {
    * "/new-administration/hr",
    * "/administrative-system/policies",
    * "/sales/orders",
+   * "/new-sales/orders",
    * "/customer-order/12345",
    * "/production/batch-001",
    * "/finance/reports",
@@ -201,7 +204,7 @@ BreadCrum.propTypes = {
   /**
    * Allowed BreadCrum roots; defaults to:
    * ['/library', '/sourcing-pricing', '/administrative', '/new-administration',
-   *  '/administrative-system', '/sales', '/customer-order',
+   *  '/administrative-system', '/sales', '/new-sales', '/customer-order',
    *  '/production', '/finance', '/hr', '/moderator', '/operator', '/admin']
    */
   roots: PropTypes.arrayOf(PropTypes.string),

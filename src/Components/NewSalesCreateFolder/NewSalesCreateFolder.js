@@ -1,4 +1,4 @@
-// NewAdministrationCreateFolder.jsx
+// src/Components/NewSalesCreateFolder/NewSalesCreateFolder.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Button, Form, Modal } from 'react-bootstrap';
@@ -6,14 +6,14 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolderPlus } from '@fortawesome/free-solid-svg-icons';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import './NewAdministrationCreateFolder.css';
+import './NewSalesCreateFolder.css';
 
 /* ======================== Config ======================== */
 const RAW_API_BASE =
   process.env.REACT_APP_API_BASE || 'https://databank.tcscontrols.com.my';
 
-// Base path for the new Administration area
-const ADMIN_BASE = process.env.REACT_APP_ADMIN_BASE || '/new-administration';
+// Root for the New Sales area
+const NEW_SALES_BASE = process.env.REACT_APP_NEW_SALES_BASE || '/new-sales';
 
 /** Ensure API base has scheme and no trailing slash */
 function normalizeBaseUrl(url) {
@@ -32,7 +32,7 @@ function resolveParentPath(currentFolder) {
     currentFolder === 'root folder' ||
     currentFolder._id === 'root'
   ) {
-    return ADMIN_BASE;
+    return NEW_SALES_BASE;
   }
 
   // Prefer a direct path if present
@@ -54,7 +54,7 @@ function resolveParentPath(currentFolder) {
     : [];
   const leafName = currentFolder?.data?.name ?? currentFolder?.name ?? '';
 
-  const parts = [ADMIN_BASE, ...names, leafName].filter(Boolean);
+  const parts = [NEW_SALES_BASE, ...names, leafName].filter(Boolean);
   return parts.join('/').replace(/\/{2,}/g, '/');
 }
 
@@ -72,9 +72,9 @@ function sanitizeFolderName(raw) {
 
 /* ======================== Component ======================== */
 
-const NewAdministrationCreateFolder = ({
+const NewSalesCreateFolder = ({
   currentFolder,
-  onNewAdministrationCreateFolder,
+  onNewSalesCreateFolder,
   siblings,
   buttonVariant,
   buttonClassName,
@@ -163,7 +163,7 @@ const NewAdministrationCreateFolder = ({
       toast.success(`✅ Folder "${clean}" created successfully!`);
 
       // Notify parent
-      onNewAdministrationCreateFolder?.({
+      onNewSalesCreateFolder?.({
         id: json.created,
         name: clean,
         parent: parentPath,
@@ -242,22 +242,22 @@ const NewAdministrationCreateFolder = ({
   );
 };
 
-NewAdministrationCreateFolder.propTypes = {
+NewSalesCreateFolder.propTypes = {
   currentFolder: PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
-  onNewAdministrationCreateFolder: PropTypes.func, // (meta) => void
+  onNewSalesCreateFolder: PropTypes.func, // (meta) => void
   siblings: PropTypes.array,
   buttonVariant: PropTypes.string,
   buttonClassName: PropTypes.string,
   modalTitle: PropTypes.string,
 };
 
-NewAdministrationCreateFolder.defaultProps = {
+NewSalesCreateFolder.defaultProps = {
   currentFolder: 'root folder',
-  onNewAdministrationCreateFolder: undefined,
+  onNewSalesCreateFolder: undefined,
   siblings: undefined,
   buttonVariant: 'outline-dark',
   buttonClassName: undefined,
   modalTitle: 'Create New Folder',
 };
 
-export default NewAdministrationCreateFolder;
+export default NewSalesCreateFolder;

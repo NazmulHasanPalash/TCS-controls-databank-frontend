@@ -31,6 +31,7 @@ import Production from './page/Production/Production';
 import Hr from './page/Hr/Hr';
 import Finance from './page/Finance/Finance';
 import NewAdministration from './page/NewAdministration/NewAdministration';
+import NewSales from './page/NewSales/NewSales';
 
 function App() {
   return (
@@ -67,6 +68,9 @@ function App() {
             </PrivateRouter>
             <PrivateRouter exact path="/files/newAdministrationSystem">
               <NewAdministration></NewAdministration>
+            </PrivateRouter>
+            <PrivateRouter exact path="/files/newSalesSystem">
+              <NewSales></NewSales>
             </PrivateRouter>
 
             {/* File manager sections (any signed-in user) */}
