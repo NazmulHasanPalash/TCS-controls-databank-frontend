@@ -409,7 +409,7 @@ function NewFinanceDispaly() {
     });
   const clearSelection = () => setSelected(new Set());
 
-  // Map for quick lookup (used by bulk delete & bulk download)
+  // Map for quick lookup (used by bulk delete)
   const itemByKey = useMemo(
     () => new Map(items.map((it) => [joinPosix(path, it.name), it])),
     [items, path]
@@ -478,54 +478,13 @@ function NewFinanceDispaly() {
 
   const handleDownload = (item) => {
     if (item.isDirectory) {
-      alert(
-        'Use "Download as ZIP" to download folders or use Download Selected.'
-      );
+      alert('Folder download is not available.');
       return;
     }
     const filePath = joinPosix(path, item.name);
     triggerDownload(buildDownloadUrl(filePath), item.name);
     setCtxOpen(false);
   };
-
-  const zipAndDownloadFolder = async (folderName) => {
-    const fullPath = joinPosix(path, folderName);
-    try {
-      const { data } = await axios.post(`${API_BASE}/api/zip`, {
-        path: fullPath,
-      });
-      if (data && data.ok && data.downloadId) {
-        const url = `${API_BASE}/api/zip/${encodeURIComponent(
-          data.downloadId
-        )}`;
-        triggerDownload(url, data.filename || `${folderName}.zip`);
-      } else {
-        alert('ZIP creation failed: backend did not return a download link.');
-      }
-    } catch (e) {
-      alert(`ZIP creation failed: ${e?.message || 'unknown error'}`);
-    }
-  };
-
-  /* ===== Bulk download (desktop + mobile) ===== */
-  const downloadSelected = useCallback(async () => {
-    if (selected.size === 0) return;
-    const minimal = collapseSelection(Array.from(selected));
-
-    for (const fullPath of minimal) {
-      const it = itemByKey.get(fullPath);
-      if (!it) continue;
-      const name = fullPath.split('/').pop() || 'download';
-
-      if (it.isDirectory) {
-        await zipAndDownloadFolder(name);
-      } else {
-        triggerDownload(buildDownloadUrl(fullPath), name);
-      }
-    }
-
-    setCtxOpen(false);
-  }, [selected, itemByKey]);
 
   /* ===== Delete (open confirmation modal) ===== */
   const openConfirmDeleteSingle = (item) => {
@@ -916,14 +875,6 @@ function NewFinanceDispaly() {
                 🔄 Refresh
               </button>
               <button
-                onClick={downloadSelected}
-                disabled={selected.size === 0 || working}
-                className="libd-pill"
-                title="Download selected"
-              >
-                ⬇ Download Selected ({selected.size})
-              </button>
-              <button
                 onClick={openConfirmDeleteBulk}
                 disabled={selected.size === 0 || working}
                 className="libd-pill libd-danger"
@@ -1062,22 +1013,8 @@ function NewFinanceDispaly() {
               {ctxTarget.isDirectory ? 'Folder' : 'File'}: {ctxTarget.name}
             </div>
 
-            {ctxTarget.isDirectory ? (
-              <>
-                <button
-                  onClick={async () => {
-                    try {
-                      await zipAndDownloadFolder(ctxTarget.name);
-                    } finally {
-                      setCtxOpen(false);
-                    }
-                  }}
-                  className="libd-menu-btn"
-                >
-                  ⬇️ Download as ZIP
-                </button>
-              </>
-            ) : (
+            {/* For files: preview + download. For folders: no download button now */}
+            {!ctxTarget.isDirectory && (
               <>
                 <button
                   onClick={() => handlePreview(ctxTarget)}

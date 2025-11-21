@@ -11,10 +11,26 @@ const Header = () => {
     user = null,
     isLoading = false,
     role: rawRole = 'new_register',
+
+    // Core role flags from hook
     isAdmin: rawIsAdmin = false,
     isModerator: rawIsModerator = false,
     isOperator: rawIsOperator = false,
     isUser: rawIsUser = false,
+
+    // Onboarding / new roles
+    isNewSales: rawIsNewSales = false,
+    isNewProduction: rawIsNewProduction = false,
+    isNewFinance: rawIsNewFinance = false,
+    isNewHr: rawIsNewHr = false,
+    isNewAdministrative: rawIsNewAdministrative = false,
+
+    // Regular / active department roles
+    isSales: rawIsSales = false,
+    isProduction: rawIsProduction = false,
+    isFinance: rawIsFinance = false,
+    isHr: rawIsHr = false,
+    isAdministrative: rawIsAdministrative = false,
   } = (function safeUseAuthRole() {
     try {
       return (typeof useAuthRole === 'function' ? useAuthRole() : {}) || {};
@@ -26,62 +42,116 @@ const Header = () => {
   const role =
     typeof rawRole === 'string' ? rawRole.toLowerCase() : 'new_register';
 
-  const isAdmin = rawIsAdmin === true;
-  const isModerator = rawIsModerator === true;
-  const isOperator = rawIsOperator === true;
+  /* ============ Normalize core role booleans ============ */
+
+  const isAdmin = rawIsAdmin === true || role === 'admin';
+  const isModerator = rawIsModerator === true || role === 'moderator';
+  const isOperator = rawIsOperator === true || role === 'operator';
   const isUser = rawIsUser === true || role === 'user';
+
+  /* ============ Normalize department role booleans ============ */
+
+  // Regular / active department roles
+  const isSales = rawIsSales === true || role === 'sales';
+  const isProduction = rawIsProduction === true || role === 'production';
+  const isFinance = rawIsFinance === true || role === 'finance';
+  const isHr = rawIsHr === true || role === 'hr';
+  const isAdministrative =
+    rawIsAdministrative === true || role === 'administrative';
+
+  // Onboarding / new roles
+  const isNewSales = rawIsNewSales === true || role === 'new_sales';
+  const isNewProduction =
+    rawIsNewProduction === true || role === 'new_production';
+  const isNewFinance = rawIsNewFinance === true || role === 'new_finance';
+  const isNewHr = rawIsNewHr === true || role === 'new_hr';
+  const isNewAdministrative =
+    rawIsNewAdministrative === true || role === 'new_administrative';
+
+  // Grouped flags
+  const isPermanentDept =
+    isSales || isProduction || isFinance || isHr || isAdministrative;
+
+  const isNewDept =
+    isNewSales ||
+    isNewProduction ||
+    isNewFinance ||
+    isNewHr ||
+    isNewAdministrative;
+
+  const isAnyDeptOrNew = isPermanentDept || isNewDept;
+
+  /* ============ Top-level role links visibility ============ */
 
   const canSeeAdminLink = isAdmin;
   const canSeeModeratorLink = isModerator || isAdmin;
   const canSeeOperatorLink = isOperator || isModerator || isAdmin;
 
-  // File manager allowed roles
-  const DEPARTMENT_ROLES = [
-    'sales',
-    'production',
-    'finance',
-    'hr',
-    'administrative',
-    'new_sales',
-    'new_production',
-    'new_finance',
-    'new_hr',
-    'new_administrative',
-  ];
+  /* ============ File Manager Access ============ */
 
   const canSeeFileManager =
-    isUser ||
-    isOperator ||
-    isModerator ||
-    isAdmin ||
-    DEPARTMENT_ROLES.includes(role);
+    isUser || isOperator || isModerator || isAdmin || isAnyDeptOrNew;
 
-  // Administrative System inside File manager (placeholder)
-  const canSeeAdministrativeSystem =
-    isAdmin || isModerator || isOperator || role === 'administrative';
-  void canSeeAdministrativeSystem; // avoid unused variable warning
+  // placeholder: could be used elsewhere
+  const canSeeAdministrativeSystemFileManager =
+    isAdmin || isModerator || isOperator || isAdministrative;
+  void canSeeAdministrativeSystemFileManager;
 
-  // Permanent employ dropdown
-  const PERMANENT_EMP_ROLES = [
-    'sales',
-    'production',
-    'finance',
-    'hr',
-    'administrative',
-  ];
+  /* ============ Dropdown Role Access ============ */
+
+  // Permanent employ dropdown (Role-1) → active department roles
   const canSeePermanentEmploy =
-    isAdmin || isModerator || isOperator || PERMANENT_EMP_ROLES.includes(role);
+    isAdmin || isModerator || isOperator || isPermanentDept;
 
-  // New employ dropdown
-  const NEW_EMP_ROLES = [
-    'new_sales',
-    'new_production',
-    'new_finance',
-    'new_hr',
-    'new_administrative',
-  ];
-  const canSeeNewEmploy =
-    isAdmin || isModerator || isOperator || NEW_EMP_ROLES.includes(role);
+  // New employ dropdown (Role-2) → onboarding roles
+  const canSeeNewEmploy = isAdmin || isModerator || isOperator || isNewDept;
+
+  // ⚠️ Special rule: AdministrationSystem item visibility
+  // Only these roles can see /files/administrationSystem
+  const canSeeAdministrationSystemItem =
+    isAdministrative || isOperator || isModerator || isAdmin;
+
+  // ⚠️ Special rule: SalesSystem item visibility
+  // Only these roles can see /files/salesSystem
+  const canSeeSalesSystemItem = isSales || isOperator || isModerator || isAdmin;
+
+  // ⚠️ Special rule: ProductionSystem item visibility
+  // Only these roles can see /files/productionSystem
+  const canSeeProductionSystemItem =
+    isProduction || isOperator || isModerator || isAdmin;
+
+  // ⚠️ Special rule: HrSystem item visibility
+  // Only these roles can see /files/hrSystem
+  const canSeeHrSystemItem = isHr || isModerator || isAdmin;
+
+  // ⚠️ Special rule: FinanceSystem item visibility
+  // Only these roles can see /files/financeSystem
+  const canSeeFinanceSystemItem = isFinance || isModerator || isAdmin;
+
+  // ⚠️ Special rule: NewAdministrationSystem item visibility
+  // Only these roles can see /files/newAdministrationSystem
+  const canSeeNewAdministrationSystemItem =
+    isNewAdministrative || isOperator || isModerator || isAdmin;
+
+  // ⚠️ Special rule: NewSalesSystem item visibility
+  // Only these roles can see /files/newSalesSystem
+  const canSeeNewSalesSystemItem =
+    isNewSales || isOperator || isModerator || isAdmin;
+
+  // ⚠️ Special rule: NewProductionSystem item visibility
+  // Only these roles can see /files/newProductionSystem
+  const canSeeNewProductionSystemItem =
+    isNewProduction || isOperator || isModerator || isAdmin;
+
+  // ⚠️ Special rule: NewHrSystem item visibility
+  // Only these roles can see /files/newHrSystem
+  const canSeeNewHrSystemItem = isNewHr || isModerator || isAdmin;
+
+  // ⚠️ Special rule: NewFinanceSystem item visibility
+  // Only these roles can see /files/newFinanceSystem
+  const canSeeNewFinanceSystemItem = isNewFinance || isModerator || isAdmin;
+
+  /* ============ Auth / Logout ============ */
 
   const { logOut } = (function safeUseFirebase() {
     try {
@@ -247,46 +317,65 @@ const Header = () => {
                           className="dropdown-menu text-color tcs-dropdown-menu"
                           aria-labelledby="permanentEmployMenu"
                         >
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/administrationSystem"
-                            >
-                              Administration
-                            </HashLink>
-                          </li>
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/salesSystem"
-                            >
-                              Sales
-                            </HashLink>
-                          </li>
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/productionSystem"
-                            >
-                              Production
-                            </HashLink>
-                          </li>
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/hrSystem"
-                            >
-                              HR
-                            </HashLink>
-                          </li>
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/financeSystem"
-                            >
-                              Finance
-                            </HashLink>
-                          </li>
+                          {/* AdministrationSystem ONLY for administrative, operator, moderator, admin */}
+                          {canSeeAdministrationSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/administrationSystem"
+                              >
+                                Administration
+                              </HashLink>
+                            </li>
+                          )}
+
+                          {/* SalesSystem ONLY for sales, operator, moderator, admin */}
+                          {canSeeSalesSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/salesSystem"
+                              >
+                                Sales
+                              </HashLink>
+                            </li>
+                          )}
+
+                          {/* ProductionSystem ONLY for production, operator, moderator, admin */}
+                          {canSeeProductionSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/productionSystem"
+                              >
+                                Production
+                              </HashLink>
+                            </li>
+                          )}
+
+                          {/* FinanceSystem ONLY for finance, moderator, admin */}
+                          {canSeeFinanceSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/financeSystem"
+                              >
+                                Finance
+                              </HashLink>
+                            </li>
+                          )}
+
+                          {/* HrSystem ONLY for hr, moderator, admin */}
+                          {canSeeHrSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/hrSystem"
+                              >
+                                HR
+                              </HashLink>
+                            </li>
+                          )}
                         </ul>
                       </li>
                     )}
@@ -308,46 +397,65 @@ const Header = () => {
                           className="dropdown-menu text-color tcs-dropdown-menu"
                           aria-labelledby="newEmployMenu"
                         >
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/newAdministrationSystem"
-                            >
-                              New Administration
-                            </HashLink>
-                          </li>
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/newSalesSystem"
-                            >
-                              New Sales
-                            </HashLink>
-                          </li>
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/newProductionSystem"
-                            >
-                              New Production
-                            </HashLink>
-                          </li>
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/newFinanceSystem"
-                            >
-                              New Finance
-                            </HashLink>
-                          </li>
-                          <li>
-                            <HashLink
-                              className="nav-link dropdown-text-style tcs-dropdown-link"
-                              to="/files/newHrSystem"
-                            >
-                              New HR
-                            </HashLink>
-                          </li>
+                          {/* NewAdministrationSystem ONLY for new_administrative, operator, moderator, admin */}
+                          {canSeeNewAdministrationSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/newAdministrationSystem"
+                              >
+                                New Administration
+                              </HashLink>
+                            </li>
+                          )}
+
+                          {/* NewSalesSystem ONLY for new_sales, operator, moderator, admin */}
+                          {canSeeNewSalesSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/newSalesSystem"
+                              >
+                                New Sales
+                              </HashLink>
+                            </li>
+                          )}
+
+                          {/* NewProductionSystem ONLY for new_production, operator, moderator, admin */}
+                          {canSeeNewProductionSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/newProductionSystem"
+                              >
+                                New Production
+                              </HashLink>
+                            </li>
+                          )}
+
+                          {/* NewFinanceSystem ONLY for new_finance, moderator, admin */}
+                          {canSeeNewFinanceSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/newFinanceSystem"
+                              >
+                                New Finance
+                              </HashLink>
+                            </li>
+                          )}
+
+                          {/* NewHrSystem ONLY for new_hr, moderator, admin */}
+                          {canSeeNewHrSystemItem && (
+                            <li>
+                              <HashLink
+                                className="nav-link dropdown-text-style tcs-dropdown-link"
+                                to="/files/newHrSystem"
+                              >
+                                New HR
+                              </HashLink>
+                            </li>
+                          )}
                         </ul>
                       </li>
                     )}

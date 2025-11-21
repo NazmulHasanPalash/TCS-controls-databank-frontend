@@ -5,6 +5,7 @@
 .ac-root {
   width: 100%;
   min-height: 100vh;
+  margin-bottom: 50px;
   padding: 1.5rem;
   box-sizing: border-box;
   background: radial-gradient(
